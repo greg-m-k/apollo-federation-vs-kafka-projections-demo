@@ -44,16 +44,21 @@ function App() {
 
   // Estimate Federation stage timing based on total latency
   // In reality, the router makes parallel calls to subgraphs, so this is an approximation
+  // Breakdown: Client→Router (network), Router processing, Router→Subgraph (network), Subgraph→DB (query)
   const estimateFederationTiming = (totalLatency) => {
-    const routerOverhead = Math.round(totalLatency * 0.15); // ~15% for router processing
-    const subgraphTime = totalLatency - routerOverhead;
-    // Subgraphs are called in parallel, so each takes roughly the full subgraph time
-    // but we show individual estimates for visualization
+    const networkOverhead = Math.round(totalLatency * 0.10); // ~10% network between client and router
+    const routerProcessing = Math.round(totalLatency * 0.08); // ~8% router parse/plan/merge
+    const subgraphTime = totalLatency - networkOverhead - routerProcessing;
+    // Each subgraph: ~30% network, ~70% DB query
     return {
-      router: routerOverhead,
+      network: networkOverhead,
+      router: routerProcessing,
       hr: Math.round(subgraphTime * 0.35),
+      hrDb: Math.round(subgraphTime * 0.35 * 0.70),
       employment: Math.round(subgraphTime * 0.35),
-      security: Math.round(subgraphTime * 0.30)
+      employmentDb: Math.round(subgraphTime * 0.35 * 0.70),
+      security: Math.round(subgraphTime * 0.30),
+      securityDb: Math.round(subgraphTime * 0.30 * 0.70)
     };
   };
 

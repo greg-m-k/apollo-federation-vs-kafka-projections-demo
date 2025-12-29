@@ -10,6 +10,8 @@ data:
       introspection: true
     cors:
       allow_any_origin: true
+      expose_headers:
+        - X-Subgraph-Timing
     homepage:
       enabled: false
     sandbox:
@@ -19,6 +21,19 @@ data:
       enabled: true
     include_subgraph_errors:
       all: true
+    # Merge timing extensions from subgraphs
+    include_subgraph_extensions:
+      all: true
+    telemetry:
+      instrumentation:
+        spans:
+          subgraph:
+            attributes:
+              subgraph.name: true
+      apollo:
+        send_headers:
+          only:
+            - X-Subgraph-Time-Ms
   supergraph.graphql: |
     schema
       @link(url: "https://specs.apollo.dev/link/v1.0")
