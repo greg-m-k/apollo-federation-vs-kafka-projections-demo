@@ -16,7 +16,7 @@ describe('ArchitecturePanel', () => {
     errorCount: 0
   };
 
-  const defaultCdcMetrics = {
+  const defaultKafkaMetrics = {
     latency: null,
     servicesUp: { query: false, consumer: false, kafka: false },
     lastQuery: null,
@@ -104,28 +104,28 @@ describe('ArchitecturePanel', () => {
     });
   });
 
-  describe('Event-Driven CQRS Panel', () => {
-    it('renders Event-Driven CQRS title and description', () => {
+  describe('Kafka Projections Panel', () => {
+    it('renders Kafka Projections title and description', () => {
       render(
         <ArchitecturePanel
-          title="Event-Driven CQRS"
-          type="cdc"
-          metrics={defaultCdcMetrics}
+          title="Kafka Projections"
+          type="kafka"
+          metrics={defaultKafkaMetrics}
           logs={[]}
           onQuery={() => {}}
         />
       );
 
-      expect(screen.getByText('Event-Driven CQRS')).toBeInTheDocument();
+      expect(screen.getByText('Kafka Projections')).toBeInTheDocument();
       expect(screen.getByText('Asynchronous events, local projections')).toBeInTheDocument();
     });
 
-    it('displays Event-Driven service statuses', () => {
+    it('displays Kafka service statuses', () => {
       render(
         <ArchitecturePanel
-          title="Event-Driven CQRS"
-          type="cdc"
-          metrics={defaultCdcMetrics}
+          title="Kafka Projections"
+          type="kafka"
+          metrics={defaultKafkaMetrics}
           logs={[]}
           onQuery={() => {}}
         />
@@ -136,12 +136,12 @@ describe('ArchitecturePanel', () => {
       expect(screen.getByText('Kafka')).toBeInTheDocument();
     });
 
-    it('shows data freshness metric for Event-Driven', () => {
+    it('shows data freshness metric for Kafka', () => {
       render(
         <ArchitecturePanel
-          title="Event-Driven CQRS"
-          type="cdc"
-          metrics={{ ...defaultCdcMetrics, dataFreshness: '2s ago' }}
+          title="Kafka Projections"
+          type="kafka"
+          metrics={{ ...defaultKafkaMetrics, dataFreshness: '2s ago' }}
           logs={[]}
           onQuery={() => {}}
         />
@@ -151,13 +151,13 @@ describe('ArchitecturePanel', () => {
       expect(screen.getByText('2s ago')).toBeInTheDocument();
     });
 
-    it('calls onQuery when Event-Driven button clicked', () => {
+    it('calls onQuery when Kafka button clicked', () => {
       const onQuery = vi.fn();
       render(
         <ArchitecturePanel
-          title="Event-Driven CQRS"
-          type="cdc"
-          metrics={defaultCdcMetrics}
+          title="Kafka Projections"
+          type="kafka"
+          metrics={defaultKafkaMetrics}
           logs={[]}
           onQuery={onQuery}
         />

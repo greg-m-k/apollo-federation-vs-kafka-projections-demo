@@ -13,9 +13,9 @@ function Tooltip({ children, text }) {
   );
 }
 
-function ComparisonSummary({ federationLatency, cdcLatency, cdcFreshness }) {
-  const latencyDiff = federationLatency && cdcLatency
-    ? Math.round((federationLatency - cdcLatency) / cdcLatency * 100)
+function ComparisonSummary({ federationLatency, kafkaLatency, kafkaFreshness }) {
+  const latencyDiff = federationLatency && kafkaLatency
+    ? Math.round((federationLatency - kafkaLatency) / kafkaLatency * 100)
     : null;
 
   return (
@@ -39,12 +39,12 @@ function ComparisonSummary({ federationLatency, cdcLatency, cdcFreshness }) {
             </div>
             <div className="text-gray-400">vs</div>
             <div className="text-center">
-              <Tooltip text="Event-Driven latency is just one local database query. Much faster but data may be slightly stale.">
+              <Tooltip text="Kafka Projections latency is just one local database query. Much faster but data may be slightly stale.">
                 <div className="text-2xl font-bold text-green-600">
-                  {cdcLatency ? `${cdcLatency}ms` : '-'}
+                  {kafkaLatency ? `${kafkaLatency}ms` : '-'}
                 </div>
               </Tooltip>
-              <div className="text-xs text-gray-500">Event-Driven</div>
+              <div className="text-xs text-gray-500">Kafka</div>
             </div>
           </div>
           {latencyDiff !== null && (
@@ -69,7 +69,7 @@ function ComparisonSummary({ federationLatency, cdcLatency, cdcFreshness }) {
             <div className="text-gray-400">vs</div>
             <div className="text-center">
               <Tooltip text="Time since last Kafka event updated the projection. High values mean no recent changes to source data. In active systems this is typically seconds.">
-                <div className="text-lg font-bold text-yellow-600">{cdcFreshness}</div>
+                <div className="text-lg font-bold text-yellow-600">{kafkaFreshness}</div>
               </Tooltip>
               <div className="text-xs text-gray-500">Data Freshness</div>
             </div>
@@ -91,9 +91,9 @@ function ComparisonSummary({ federationLatency, cdcLatency, cdcFreshness }) {
                 <span className="text-gray-600">1 service down = query fails</span>
               </div>
             </Tooltip>
-            <Tooltip text="Event-Driven queries local projections only. Even if source services are down, queries succeed with the last known data.">
+            <Tooltip text="Kafka Projections queries local database only. Even if source services are down, queries succeed with the last known data.">
               <div className="flex items-center">
-                <span className="w-24 text-green-600 font-medium">Event-Driven:</span>
+                <span className="w-24 text-green-600 font-medium">Kafka:</span>
                 <span className="text-gray-600">Query works (stale data)</span>
               </div>
             </Tooltip>
@@ -104,7 +104,7 @@ function ComparisonSummary({ federationLatency, cdcLatency, cdcFreshness }) {
       {/* Key Insight */}
       <div className="mt-4 p-3 bg-gray-100 rounded-lg text-sm text-gray-700">
         <strong>Key Insight:</strong> Federation provides real-time data consistency but couples availability
-        to all services. Event-Driven CQRS decouples services at the cost of eventual consistency.
+        to all services. Kafka Projections decouples services at the cost of eventual consistency.
       </div>
     </div>
   );

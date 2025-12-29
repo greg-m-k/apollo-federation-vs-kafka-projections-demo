@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- * Local projection of Employee data from Employment CDC events.
+ * Local projection of Employee data from Employment events.
  */
 @Entity
 @Table(name = "employee_projections")

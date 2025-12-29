@@ -153,9 +153,9 @@ if (-not $SkipBuild) {
         "services/federation/hr-subgraph",
         "services/federation/employment-subgraph",
         "services/federation/security-subgraph",
-        "services/kafka/hr-cdc-service",
-        "services/kafka/employment-cdc-service",
-        "services/kafka/security-cdc-service",
+        "services/kafka/hr-events-service",
+        "services/kafka/employment-events-service",
+        "services/kafka/security-events-service",
         "services/kafka/projection-consumer",
         "services/kafka/query-service"
     )
@@ -201,5 +201,5 @@ Write-Host "Access points:" -ForegroundColor Cyan
 Write-Host "  Tilt UI:   http://localhost:10350"
 Write-Host "  Dashboard: http://localhost:3000"
 Write-Host "  Router:    http://localhost:4000"
-Write-Host "  CDC Query: http://localhost:8090"
+Write-Host "  Kafka Query: http://localhost:8090"
 Write-Host ""

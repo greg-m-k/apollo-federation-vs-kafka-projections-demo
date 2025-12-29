@@ -40,8 +40,8 @@ tilt up
 # Start only Federation stack
 tilt up -- --federation-only
 
-# Start only Event-Driven CQRS stack
-tilt up -- --cdc-only
+# Start only Kafka Projections stack
+tilt up -- --kafka-only
 ```
 
 ### Stopping Development
@@ -103,12 +103,12 @@ tilt get
     ┌─────────────────────────────────────────────────────┐
     │                                                     │
     │  FEDERATION STACK              EVENT-DRIVEN STACK   │
-    │  (namespace: federation-demo)  (namespace: cdc-demo)│
+    │  (namespace: federation-demo)  (namespace: kafka-demo)│
     │                                                     │
     │  ┌─────────────────┐          ┌─────────────────┐  │
-    │  │  hr-subgraph    │          │ hr-cdc-service  │  │
-    │  │  employment-sub │          │ emp-cdc-service │  │
-    │  │  security-sub   │          │ sec-cdc-service │  │
+    │  │  hr-subgraph    │          │ hr-events-svc   │  │
+    │  │  employment-sub │          │ emp-events-svc  │  │
+    │  │  security-sub   │          │ sec-events-svc  │  │
     │  └────────┬────────┘          └────────┬────────┘  │
     │           │                            │           │
     │           ▼                            ▼           │
@@ -203,7 +203,7 @@ Ensure all subgraphs are healthy before router starts. Check Tilt UI for depende
 
 The dashboard uses nginx proxies to reach services across namespaces:
 - Federation: `router.federation-demo.svc.cluster.local:4000`
-- Event-Driven: `cdc-query-service:8080` (same namespace)
+- Event-Driven: `query-service:8080` (same namespace)
 
 ### Clean Restart
 
@@ -216,7 +216,7 @@ tilt up
 ## Tips
 
 1. **Keep Tilt UI open** - It provides real-time feedback on builds and deployments
-2. **Use resource labels** - Filter by `federation` or `cdc` in Tilt UI
+2. **Use resource labels** - Filter by `federation` or `kafka` in Tilt UI
 3. **Check dependencies** - If a service fails, check its dependencies first
 4. **Maven cache** - First build is slow, subsequent builds use cached dependencies
 5. **Watch startup order** - Postgres/Kafka must be ready before dependent services

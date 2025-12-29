@@ -178,54 +178,54 @@ if deploy_kafka:
         labels=['kafka', 'infra']
     )
 
-    # HR CDC Service
+    # HR Events Service
     quarkus_service(
-        name='hr-cdc-service',
-        context='./services/kafka/hr-cdc-service',
+        name='hr-events-service',
+        context='./services/kafka/hr-events-service',
         namespace='kafka',
-        db_name='hr_cdc_db',
+        db_name='hr_events_db',
         port_forward='8084:8080',
         resource_deps=['postgres-kafka', 'kafka']
     )
-    k8s_yaml('k8s/kafka/hr-cdc-service.yaml')
+    k8s_yaml('k8s/kafka/hr-events-service.yaml')
     k8s_resource(
-        'hr-cdc-service',
+        'hr-events-service',
         port_forwards=['8084:8080'],
-        resource_deps=['hr-cdc-service-build', 'postgres-kafka', 'kafka'],
+        resource_deps=['hr-events-service-build', 'postgres-kafka', 'kafka'],
         labels=['kafka', 'service']
     )
 
-    # Employment CDC Service
+    # Employment Events Service
     quarkus_service(
-        name='employment-cdc-service',
-        context='./services/kafka/employment-cdc-service',
+        name='employment-events-service',
+        context='./services/kafka/employment-events-service',
         namespace='kafka',
-        db_name='employment_cdc_db',
+        db_name='employment_events_db',
         port_forward='8085:8080',
         resource_deps=['postgres-kafka', 'kafka']
     )
-    k8s_yaml('k8s/kafka/employment-cdc-service.yaml')
+    k8s_yaml('k8s/kafka/employment-events-service.yaml')
     k8s_resource(
-        'employment-cdc-service',
+        'employment-events-service',
         port_forwards=['8085:8080'],
-        resource_deps=['employment-cdc-service-build', 'postgres-kafka', 'kafka'],
+        resource_deps=['employment-events-service-build', 'postgres-kafka', 'kafka'],
         labels=['kafka', 'service']
     )
 
-    # Security CDC Service
+    # Security Events Service
     quarkus_service(
-        name='security-cdc-service',
-        context='./services/kafka/security-cdc-service',
+        name='security-events-service',
+        context='./services/kafka/security-events-service',
         namespace='kafka',
-        db_name='security_cdc_db',
+        db_name='security_events_db',
         port_forward='8086:8080',
         resource_deps=['postgres-kafka', 'kafka']
     )
-    k8s_yaml('k8s/kafka/security-cdc-service.yaml')
+    k8s_yaml('k8s/kafka/security-events-service.yaml')
     k8s_resource(
-        'security-cdc-service',
+        'security-events-service',
         port_forwards=['8086:8080'],
-        resource_deps=['security-cdc-service-build', 'postgres-kafka', 'kafka'],
+        resource_deps=['security-events-service-build', 'postgres-kafka', 'kafka'],
         labels=['kafka', 'service']
     )
 
@@ -242,7 +242,7 @@ if deploy_kafka:
     k8s_resource(
         'projection-consumer',
         port_forwards=['8089:8080'],
-        resource_deps=['projection-consumer-build', 'hr-cdc-service', 'employment-cdc-service', 'security-cdc-service'],
+        resource_deps=['projection-consumer-build', 'hr-events-service', 'employment-events-service', 'security-events-service'],
         labels=['kafka', 'service']
     )
 

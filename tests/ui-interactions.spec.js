@@ -15,7 +15,7 @@ test.describe('Dashboard UI Interactions', () => {
     const header = page.locator('header');
     await expect(header).toBeVisible();
     await expect(page.getByText('Architecture Comparison Dashboard')).toBeVisible();
-    await expect(page.getByText('GraphQL Federation vs Event-Driven CQRS')).toBeVisible();
+    await expect(page.getByText('GraphQL Federation vs Kafka Projections')).toBeVisible();
   });
 
   test('should display person selector with all options', async ({ page }) => {
@@ -76,8 +76,8 @@ test.describe('Dashboard UI Interactions', () => {
     await expect(page.getByText('Query Composed View')).toBeVisible();
   });
 
-  test('should display Event-Driven CQRS panel', async ({ page }) => {
-    const panel = page.locator('text=Event-Driven CQRS').first();
+  test('should display Kafka Projections panel', async ({ page }) => {
+    const panel = page.locator('text=Kafka Projections').first();
     await expect(panel).toBeVisible();
 
     // Check panel contains expected elements
@@ -93,7 +93,7 @@ test.describe('Dashboard UI Interactions', () => {
     await expect(page.getByText('Employment').first()).toBeVisible();
     await expect(page.getByText('Security').first()).toBeVisible();
 
-    // CDC services
+    // Kafka services
     await expect(page.locator('text=Projection').first()).toBeVisible();
     await expect(page.locator('text=Consumer').first()).toBeVisible();
     await expect(page.locator('text=Kafka').first()).toBeVisible();
@@ -135,19 +135,19 @@ test.describe('Dashboard Query Operations', () => {
     await page.screenshot({ path: 'test-results/federation-query.png', fullPage: true });
   });
 
-  test('should query Event-Driven and update UI', async ({ page }) => {
+  test('should query Kafka and update UI', async ({ page }) => {
     await page.goto(DASHBOARD_URL);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
 
     // Click Query Local Projection button
-    const cdcButton = page.getByRole('button', { name: /Query Local Projection/i });
-    await cdcButton.click();
+    const kafkaButton = page.getByRole('button', { name: /Query Local Projection/i });
+    await kafkaButton.click();
 
     // Wait for query to complete
     await page.waitForTimeout(2000);
 
-    await page.screenshot({ path: 'test-results/cdc-query.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/kafka-query.png', fullPage: true });
   });
 
   test('should query both architectures', async ({ page }) => {

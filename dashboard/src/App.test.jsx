@@ -13,11 +13,11 @@ vi.mock('./components/ArchitecturePanel', () => ({
 }));
 
 vi.mock('./components/ComparisonSummary', () => ({
-  default: ({ federationLatency, cdcLatency, cdcFreshness }) => (
+  default: ({ federationLatency, kafkaLatency, kafkaFreshness }) => (
     <div data-testid="comparison-summary">
       <span>Fed: {federationLatency || '-'}</span>
-      <span>CDC: {cdcLatency || '-'}</span>
-      <span>Freshness: {cdcFreshness || 'N/A'}</span>
+      <span>Kafka: {kafkaLatency || '-'}</span>
+      <span>Freshness: {kafkaFreshness || 'N/A'}</span>
     </div>
   )
 }));
@@ -44,7 +44,7 @@ describe('App', () => {
     render(<App />);
 
     expect(screen.getByText('Architecture Comparison Dashboard')).toBeInTheDocument();
-    expect(screen.getByText('GraphQL Federation vs Event-Driven CQRS')).toBeInTheDocument();
+    expect(screen.getByText('GraphQL Federation vs Kafka Projections')).toBeInTheDocument();
   });
 
   it('renders person selector with dynamic options', async () => {
@@ -79,9 +79,9 @@ describe('App', () => {
     render(<App />);
 
     expect(screen.getByTestId('panel-federation')).toBeInTheDocument();
-    expect(screen.getByTestId('panel-cdc')).toBeInTheDocument();
+    expect(screen.getByTestId('panel-kafka')).toBeInTheDocument();
     expect(screen.getByText('GraphQL Federation')).toBeInTheDocument();
-    expect(screen.getByText('Event-Driven CQRS')).toBeInTheDocument();
+    expect(screen.getByText('Kafka Projections')).toBeInTheDocument();
   });
 
   it('renders comparison summary', () => {
@@ -157,8 +157,8 @@ describe('App', () => {
     });
   });
 
-  describe('CDC Query', () => {
-    it('queries CDC endpoint on button click', async () => {
+  describe('Kafka Query', () => {
+    it('queries Kafka endpoint on button click', async () => {
       global.fetch
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockPersons), headers: { get: () => null } })
         .mockResolvedValueOnce({
@@ -172,7 +172,7 @@ describe('App', () => {
         expect(screen.getByText('Alice Johnson (person-001)')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByText('Query cdc'));
+      fireEvent.click(screen.getByText('Query kafka'));
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
@@ -181,7 +181,7 @@ describe('App', () => {
       });
     });
 
-    it('handles CDC query errors gracefully', async () => {
+    it('handles Kafka query errors gracefully', async () => {
       global.fetch
         .mockResolvedValueOnce({ json: () => Promise.resolve(mockPersons), headers: { get: () => null } })
         .mockRejectedValueOnce(new Error('Network error'));
@@ -192,7 +192,7 @@ describe('App', () => {
         expect(screen.getByText('Alice Johnson (person-001)')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByText('Query cdc'));
+      fireEvent.click(screen.getByText('Query kafka'));
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledTimes(2);
@@ -208,7 +208,7 @@ describe('App', () => {
         .mockResolvedValueOnce({
           json: () => Promise.resolve({ person: { name: 'Alice' } }),
           headers: { get: () => null }
-        }); // cdc
+        }); // kafka
 
       render(<App />);
 
@@ -219,7 +219,7 @@ describe('App', () => {
       fireEvent.click(screen.getByText('Query Both Architectures'));
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledTimes(3); // persons + federation + cdc
+        expect(global.fetch).toHaveBeenCalledTimes(3); // persons + federation + kafka
       });
     });
   });

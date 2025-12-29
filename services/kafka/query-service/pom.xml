@@ -5,11 +5,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.example</groupId>
-    <artifactId>cdc-query-service</artifactId>
+    <artifactId>query-service</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>CDC Query Service</name>
+    <name>Query Service</name>
     <description>Query service that reads from local projections - single local query, no network calls</description>
 
     <properties>

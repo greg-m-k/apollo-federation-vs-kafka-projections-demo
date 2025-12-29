@@ -10,7 +10,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 /**
- * Local projection of Person data from HR CDC events.
+ * Local projection of Person data from HR events.
  */
 @Entity
 @Table(name = "person_projections")

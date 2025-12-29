@@ -67,7 +67,7 @@ public class BadgeEventConsumer {
 
             badgeRepository.persist(projection);
 
-            processedEventRepository.persist(new ProcessedEvent(eventId, "cdc.security.badge", 0L, 0));
+            processedEventRepository.persist(new ProcessedEvent(eventId, "events.security.badge", 0L, 0));
 
             LOG.infof("Processed %s for badge %s", eventType, badgeId);
         } catch (Exception e) {

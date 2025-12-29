@@ -21,9 +21,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Query resource for CDC architecture.
+ * Query resource for Kafka Projections architecture.
  * All queries are served from local projections - NO network calls to other services.
- * This demonstrates the key advantage of CDC: single local query for composed views.
+ * This demonstrates the key advantage of event-driven projections: single local query for composed views.
  */
 @Path("/api")
 @Produces(MediaType.APPLICATION_JSON)

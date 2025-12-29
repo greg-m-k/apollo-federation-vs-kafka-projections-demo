@@ -18,7 +18,7 @@ nodes:
       - containerPort: 30088
         hostPort: 8088
         protocol: TCP
-      # CDC Query Service
+      # Kafka Query Service
       - containerPort: 30090
         hostPort: 8090
         protocol: TCP
@@ -36,7 +36,7 @@ nodes:
       - containerPort: 30093
         hostPort: 8093
         protocol: TCP
-      # CDC services (for debugging)
+      # Kafka services (for debugging)
       - containerPort: 30084
         hostPort: 8084
         protocol: TCP
@@ -50,7 +50,7 @@ nodes:
       - containerPort: 30434
         hostPort: 5434
         protocol: TCP
-      # PostgreSQL (CDC)
+      # PostgreSQL (Kafka)
       - containerPort: 30433
         hostPort: 5433
         protocol: TCP

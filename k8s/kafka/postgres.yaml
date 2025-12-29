@@ -15,9 +15,9 @@ metadata:
   namespace: kafka-demo
 data:
   init.sql: |
-    CREATE DATABASE hr_cdc_db;
-    CREATE DATABASE employment_cdc_db;
-    CREATE DATABASE security_cdc_db;
+    CREATE DATABASE hr_events_db;
+    CREATE DATABASE employment_events_db;
+    CREATE DATABASE security_events_db;
     CREATE DATABASE projections_db;
 ---
 apiVersion: apps/v1

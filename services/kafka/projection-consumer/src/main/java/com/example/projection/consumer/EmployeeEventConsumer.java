@@ -68,7 +68,7 @@ public class EmployeeEventConsumer {
 
             employeeRepository.persist(projection);
 
-            processedEventRepository.persist(new ProcessedEvent(eventId, "cdc.employment.employee", 0L, 0));
+            processedEventRepository.persist(new ProcessedEvent(eventId, "events.employment.employee", 0L, 0));
 
             LOG.infof("Processed %s for employee %s", eventType, employeeId);
         } catch (Exception e) {

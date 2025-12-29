@@ -9,7 +9,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * Local projection of BadgeHolder data from Security CDC events.
+ * Local projection of BadgeHolder data from Security events.
  */
 @Entity
 @Table(name = "badge_projections")

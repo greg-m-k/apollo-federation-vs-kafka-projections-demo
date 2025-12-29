@@ -12,8 +12,8 @@ describe('ComparisonSummary', () => {
     render(
       <ComparisonSummary
         federationLatency={150}
-        cdcLatency={50}
-        cdcFreshness="2s ago"
+        kafkaLatency={50}
+        kafkaFreshness="2s ago"
       />
     );
 
@@ -32,8 +32,8 @@ describe('ComparisonSummary', () => {
     render(
       <ComparisonSummary
         federationLatency={200}
-        cdcLatency={100}
-        cdcFreshness="1s ago"
+        kafkaLatency={100}
+        kafkaFreshness="1s ago"
       />
     );
 
@@ -43,12 +43,12 @@ describe('ComparisonSummary', () => {
     expect(screen.getByText(/Event-Driven is.*faster/)).toBeInTheDocument();
   });
 
-  it('displays Event-Driven freshness value', () => {
+  it('displays Kafka freshness value', () => {
     render(
       <ComparisonSummary
         federationLatency={100}
-        cdcLatency={50}
-        cdcFreshness="5s ago"
+        kafkaLatency={50}
+        kafkaFreshness="5s ago"
       />
     );
 

@@ -7,14 +7,14 @@ const FEDERATION_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:4000'
   : '/api/federation';
 
-const CDC_URL = window.location.hostname === 'localhost'
+const KAFKA_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:8090/api'
-  : '/api/cdc';
+  : '/api/kafka';
 
-// HR CDC service for mutations (separate from query service)
-const HR_CDC_URL = window.location.hostname === 'localhost'
+// HR Events service for mutations (separate from query service)
+const HR_EVENTS_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:8084'
-  : '/api/hr-cdc';
+  : '/api/hr-events';
 
 function App() {
   const [federationMetrics, setFederationMetrics] = useState({
@@ -26,7 +26,7 @@ function App() {
     errorCount: 0
   });
 
-  const [cdcMetrics, setCdcMetrics] = useState({
+  const [kafkaMetrics, setKafkaMetrics] = useState({
     latency: null,
     stageTiming: { queryService: null },
     servicesUp: { query: false, consumer: false, kafka: false },
@@ -57,7 +57,7 @@ function App() {
     };
   };
 
-  const [logs, setLogs] = useState({ federation: [], cdc: [] });
+  const [logs, setLogs] = useState({ federation: [], kafka: [] });
   const [selectedPerson, setSelectedPerson] = useState('person-001');
   const [availablePersons, setAvailablePersons] = useState([]);
   const [loadingPersons, setLoadingPersons] = useState(true);
@@ -66,7 +66,7 @@ function App() {
   // Fetch available persons from the projection service
   const fetchPersons = useCallback(async () => {
     try {
-      const response = await fetch(`${CDC_URL}/persons`);
+      const response = await fetch(`${KAFKA_URL}/persons`);
       const persons = await response.json();
       // Sort by name, with original seed data first
       const sorted = persons.sort((a, b) => {
@@ -170,17 +170,17 @@ function App() {
     }
   }, [selectedPerson, addLog, clearMutationMetrics]);
 
-  // Query CDC (Local Projections)
-  const queryCdc = useCallback(async (personIdOverride = null) => {
+  // Query Kafka Projections (Local Projections)
+  const queryKafka = useCallback(async (personIdOverride = null) => {
     // Ignore event objects passed from button clicks
     const validOverride = typeof personIdOverride === 'string' ? personIdOverride : null;
     if (!validOverride) clearMutationMetrics(); // Only clear if not querying just-created person
     const personId = validOverride || selectedPerson;
     const startTime = performance.now();
-    addLog('cdc', `Querying for ${personId}...`);
+    addLog('kafka', `Querying for ${personId}...`);
 
     try {
-      const response = await fetch(`${CDC_URL}/composed/${personId}`);
+      const response = await fetch(`${KAFKA_URL}/composed/${personId}`);
       const data = await response.json();
       const latency = Math.round(performance.now() - startTime);
 
@@ -188,7 +188,7 @@ function App() {
       const backendTime = response.headers.get('X-Query-Time-Ms');
       const queryServiceTime = backendTime ? parseInt(backendTime) : Math.round(latency * 0.3);
 
-      setCdcMetrics(prev => ({
+      setKafkaMetrics(prev => ({
         ...prev,
         latency,
         stageTiming: { queryService: queryServiceTime },
@@ -198,20 +198,20 @@ function App() {
         dataFreshness: data.freshness?.dataFreshness || 'N/A'
       }));
 
-      addLog('cdc', `Success: ${latency}ms (Projection Service: ${queryServiceTime}ms, freshness: ${data.freshness?.dataFreshness})`);
+      addLog('kafka', `Success: ${latency}ms (Projection Service: ${queryServiceTime}ms, freshness: ${data.freshness?.dataFreshness})`);
     } catch (error) {
-      setCdcMetrics(prev => ({
+      setKafkaMetrics(prev => ({
         ...prev
       }));
-      addLog('cdc', `ERROR: ${error.message}`);
+      addLog('kafka', `ERROR: ${error.message}`);
     }
   }, [selectedPerson, addLog, clearMutationMetrics]);
 
   // Query both sides
   const queryBoth = useCallback(() => {
     queryFederation();
-    queryCdc();
-  }, [queryFederation, queryCdc]);
+    queryKafka();
+  }, [queryFederation, queryKafka]);
 
   // Poll for person to appear in projection (measures propagation delay)
   const waitForPropagation = useCallback(async (personId, maxWaitMs = 10000) => {
@@ -220,7 +220,7 @@ function App() {
 
     while (performance.now() - startTime < maxWaitMs) {
       try {
-        const response = await fetch(`${CDC_URL}/persons`);
+        const response = await fetch(`${KAFKA_URL}/persons`);
         const persons = await response.json();
         if (persons.some(p => p.id === personId)) {
           return Math.round(performance.now() - startTime);
@@ -283,18 +283,18 @@ function App() {
     }
 
     // Create in Event-Driven (with timing + propagation measurement)
-    addLog('cdc', `Creating person: ${name}...`);
+    addLog('kafka', `Creating person: ${name}...`);
     try {
-      const cdcStart = performance.now();
-      const response = await fetch(`${HR_CDC_URL}/api/persons`, {
+      const kafkaStart = performance.now();
+      const response = await fetch(`${HR_EVENTS_URL}/api/persons`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, hireDate: new Date().toISOString().split('T')[0] })
       });
       const newPerson = await response.json();
-      const mutationTime = Math.round(performance.now() - cdcStart);
+      const mutationTime = Math.round(performance.now() - kafkaStart);
 
-      addLog('cdc', `Mutation complete: ${mutationTime}ms. Waiting for Kafka propagation...`);
+      addLog('kafka', `Mutation complete: ${mutationTime}ms. Waiting for Kafka propagation...`);
 
       // Now measure propagation time (how long until it appears in projection)
       const propagationTime = await waitForPropagation(newPerson.id);
@@ -306,15 +306,15 @@ function App() {
       }));
 
       // Update service status to show services are up
-      setCdcMetrics(prev => ({
+      setKafkaMetrics(prev => ({
         ...prev,
         servicesUp: { query: true, consumer: true, kafka: true }
       }));
 
       if (propagationTime !== null) {
-        addLog('cdc', `Propagated in ${propagationTime}ms. Total: ${totalTime}ms (mutation: ${mutationTime}ms + propagation: ${propagationTime}ms)`);
+        addLog('kafka', `Propagated in ${propagationTime}ms. Total: ${totalTime}ms (mutation: ${mutationTime}ms + propagation: ${propagationTime}ms)`);
       } else {
-        addLog('cdc', `WARNING: Propagation timeout after 10s`);
+        addLog('kafka', `WARNING: Propagation timeout after 10s`);
       }
 
       // Refresh persons list and select the new person
@@ -322,12 +322,12 @@ function App() {
       if (newPerson?.id) {
         setSelectedPerson(newPerson.id);
         // Auto-query the created person to show results
-        queryCdc(newPerson.id);
+        queryKafka(newPerson.id);
       }
     } catch (e) {
-      addLog('cdc', `ERROR: ${e.message}`);
+      addLog('kafka', `ERROR: ${e.message}`);
     }
-  }, [addLog, fetchPersons, waitForPropagation, queryCdc, queryFederation]);
+  }, [addLog, fetchPersons, waitForPropagation, queryKafka, queryFederation]);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -335,7 +335,7 @@ function App() {
       <header className="bg-gradient-to-r from-blue-800 to-purple-800 text-white p-4 shadow-lg">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-2xl font-bold">Architecture Comparison Dashboard</h1>
-          <p className="text-blue-200 text-sm">GraphQL Federation vs Event-Driven CQRS</p>
+          <p className="text-blue-200 text-sm">GraphQL Federation vs Kafka Projections</p>
         </div>
       </header>
 
@@ -374,8 +374,8 @@ function App() {
         {/* Comparison Summary */}
         <ComparisonSummary
           federationLatency={federationMetrics.latency}
-          cdcLatency={cdcMetrics.latency}
-          cdcFreshness={cdcMetrics.dataFreshness}
+          kafkaLatency={kafkaMetrics.latency}
+          kafkaFreshness={kafkaMetrics.dataFreshness}
         />
 
         {/* Mutation Timing Comparison */}
@@ -443,11 +443,11 @@ function App() {
             mutationTiming={mutationMetrics.federation}
           />
           <ArchitecturePanel
-            title="Event-Driven CQRS"
-            type="cdc"
-            metrics={cdcMetrics}
-            logs={logs.cdc}
-            onQuery={queryCdc}
+            title="Kafka Projections"
+            type="kafka"
+            metrics={kafkaMetrics}
+            logs={logs.kafka}
+            onQuery={queryKafka}
             mutationTiming={mutationMetrics.eventDriven}
           />
         </div>

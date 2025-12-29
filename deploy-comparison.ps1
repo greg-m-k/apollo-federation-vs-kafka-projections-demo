@@ -4,7 +4,7 @@
 param(
     [switch]$Build,
     [switch]$FederationOnly,
-    [switch]$CdcOnly
+    [switch]$KafkaOnly
 )
 
 Write-Host "=== Architecture Comparison Demo Deployment ===" -ForegroundColor Cyan
@@ -17,11 +17,11 @@ if ($Build) {
         "hr-subgraph",
         "employment-subgraph",
         "security-subgraph",
-        "hr-cdc-service",
-        "employment-cdc-service",
-        "security-cdc-service",
-        "cdc-projection-consumer",
-        "cdc-query-service"
+        "hr-events-service",
+        "employment-events-service",
+        "security-events-service",
+        "projection-consumer",
+        "query-service"
     )
 
     foreach ($project in $projects) {
@@ -38,19 +38,19 @@ if ($Build) {
 Write-Host "`nCreating namespaces..." -ForegroundColor Yellow
 kubectl apply -f k8s\namespace.yaml
 
-if (-not $CdcOnly) {
+if (-not $KafkaOnly) {
     Write-Host "`nDeploying Federation architecture..." -ForegroundColor Yellow
     kubectl apply -f k8s\federation\
 }
 
 if (-not $FederationOnly) {
-    Write-Host "`nDeploying CDC architecture..." -ForegroundColor Yellow
-    kubectl apply -f k8s\cdc\
+    Write-Host "`nDeploying Kafka architecture..." -ForegroundColor Yellow
+    kubectl apply -f k8s\kafka\
 }
 
 Write-Host "`n=== Deployment Complete ===" -ForegroundColor Green
 Write-Host ""
 Write-Host "Federation Router: http://localhost:30400" -ForegroundColor Cyan
-Write-Host "CDC Query Service: http://localhost:30090" -ForegroundColor Cyan
+Write-Host "Kafka Query Service: http://localhost:30090" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "To check status: kubectl get pods -n federation-demo && kubectl get pods -n cdc-demo"
+Write-Host "To check status: kubectl get pods -n federation-demo && kubectl get pods -n kafka-demo"

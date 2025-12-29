@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cdc-projection-consumer
+  name: projection-consumer
   namespace: kafka-demo
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: cdc-projection-consumer
+      app: projection-consumer
   template:
     metadata:
       labels:
-        app: cdc-projection-consumer
+        app: projection-consumer
     spec:
       containers:
-        - name: cdc-projection-consumer
-          image: cdc-projection-consumer:latest
+        - name: projection-consumer
+          image: projection-consumer:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -58,11 +58,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: cdc-projection-consumer
+  name: projection-consumer
   namespace: kafka-demo
 spec:
   selector:
-    app: cdc-projection-consumer
+    app: projection-consumer
   ports:
     - port: 8080
       targetPort: 8080

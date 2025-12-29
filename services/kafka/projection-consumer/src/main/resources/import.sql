@@ -1,4 +1,4 @@
--- Seed data for CDC Projections (mirrors Federation seed data)
+-- Seed data for Kafka Projections (mirrors Federation seed data)
 -- This provides initial data so the demo works immediately on startup
 
 -- Person Projections

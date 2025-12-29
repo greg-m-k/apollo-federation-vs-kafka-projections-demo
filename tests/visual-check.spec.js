@@ -21,7 +21,7 @@ test('capture latency display screenshots', async ({ page }) => {
   await page.screenshot({ path: 'test-results/2-after-federation-query.png', fullPage: true });
   console.log('Screenshot 2: After Federation query - check diagram for timing labels');
 
-  // Click CDC query
+  // Click Kafka query
   await page.getByText('Query Local Projection').click();
   await page.waitForTimeout(2000);
 
@@ -35,12 +35,12 @@ test('capture latency display screenshots', async ({ page }) => {
   const federationDiagramText = await federationSvg.textContent();
   console.log('\nFederation diagram text:', federationDiagramText?.substring(0, 500));
 
-  const cdcPanel = page.locator('.architecture-panel').nth(1);
-  const cdcSvg = cdcPanel.locator('svg');
-  const cdcDiagramText = await cdcSvg.textContent();
-  console.log('\nCDC diagram text:', cdcDiagramText?.substring(0, 500));
+  const kafkaPanel = page.locator('.architecture-panel').nth(1);
+  const kafkaSvg = kafkaPanel.locator('svg');
+  const kafkaDiagramText = await kafkaSvg.textContent();
+  console.log('\nKafka diagram text:', kafkaDiagramText?.substring(0, 500));
 
   // Verify timing appears
   expect(federationDiagramText).toMatch(/\d+ms/);
-  expect(cdcDiagramText).toMatch(/\d+ms/);
+  expect(kafkaDiagramText).toMatch(/\d+ms/);
 });

@@ -6,7 +6,7 @@ import java.time.LocalDate;
 
 /**
  * Composed view combining data from all three bounded contexts.
- * In CDC architecture, this is served from a single local query.
+ * In Kafka Projections architecture, this is served from a single local query.
  */
 public record ComposedView(
     // Person data (from HR)

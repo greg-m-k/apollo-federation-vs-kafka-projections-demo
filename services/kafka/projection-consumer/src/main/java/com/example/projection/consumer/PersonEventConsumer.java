@@ -73,7 +73,7 @@ public class PersonEventConsumer {
             personRepository.persist(projection);
 
             // Mark as processed
-            processedEventRepository.persist(new ProcessedEvent(eventId, "cdc.hr.person", 0L, 0));
+            processedEventRepository.persist(new ProcessedEvent(eventId, "events.hr.person", 0L, 0));
 
             LOG.infof("Processed %s for person %s", eventType, personId);
         } catch (Exception e) {

@@ -4,7 +4,7 @@
 $ErrorActionPreference = "Stop"
 
 $FEDERATION_URL = "http://localhost:4000"
-$CDC_URL = "http://localhost:8090"
+$KAFKA_URL = "http://localhost:8090"
 
 Write-Host "=== ARCHITECTURE COMPARISON DEMO ===" -ForegroundColor Cyan
 Write-Host ""
@@ -20,9 +20,9 @@ try {
 }
 
 try {
-    $null = Invoke-RestMethod -Uri "$CDC_URL/health" -TimeoutSec 5
+    $null = Invoke-RestMethod -Uri "$KAFKA_URL/health" -TimeoutSec 5
 } catch {
-    Write-Host "ERROR: CDC Query Service not responding at $CDC_URL" -ForegroundColor Red
+    Write-Host "ERROR: Query Service not responding at $KAFKA_URL" -ForegroundColor Red
     Write-Host "Run 'make up' or 'tilt up' first to start services."
     exit 1
 }
@@ -61,20 +61,20 @@ Write-Host ""
 Write-Host "Federation latency: ${fedLatency}ms (3 service calls)" -ForegroundColor Magenta
 Write-Host ""
 
-# Step 3: Query composed view from CDC
+# Step 3: Query composed view from Kafka Projections
 Write-Host "=========================================" -ForegroundColor Yellow
-Write-Host "3. Query composed view from CDC"
+Write-Host "3. Query composed view from Kafka Projections"
 Write-Host "   (single local query)"
 Write-Host "=========================================" -ForegroundColor Yellow
 
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
-$cdcResult = Invoke-RestMethod -Uri "$CDC_URL/api/persons" -Method Get
+$kafkaResult = Invoke-RestMethod -Uri "$KAFKA_URL/api/persons" -Method Get
 $sw.Stop()
-$cdcLatency = $sw.ElapsedMilliseconds
+$kafkaLatency = $sw.ElapsedMilliseconds
 
-$cdcResult | ConvertTo-Json -Depth 10
+$kafkaResult | ConvertTo-Json -Depth 10
 Write-Host ""
-Write-Host "CDC latency: ${cdcLatency}ms (1 local query)" -ForegroundColor Magenta
+Write-Host "Kafka latency: ${kafkaLatency}ms (1 local query)" -ForegroundColor Magenta
 Write-Host ""
 
 # Step 4: Compare latencies
@@ -82,11 +82,11 @@ Write-Host "=========================================" -ForegroundColor Yellow
 Write-Host "4. LATENCY COMPARISON"
 Write-Host "=========================================" -ForegroundColor Yellow
 Write-Host "Federation: ${fedLatency}ms (sync, 3 services)"
-Write-Host "CDC:        ${cdcLatency}ms (local projection)"
-if ($fedLatency -gt $cdcLatency) {
-    $diff = $fedLatency - $cdcLatency
+Write-Host "Kafka:      ${kafkaLatency}ms (local projection)"
+if ($fedLatency -gt $kafkaLatency) {
+    $diff = $fedLatency - $kafkaLatency
     Write-Host ""
-    Write-Host "CDC is ${diff}ms faster!" -ForegroundColor Green
+    Write-Host "Kafka is ${diff}ms faster!" -ForegroundColor Green
 }
 Write-Host ""
 
@@ -111,9 +111,9 @@ try {
 }
 
 Write-Host ""
-Write-Host "Querying CDC (Security is DOWN but data is local):" -ForegroundColor Green
-$cdcStillWorks = Invoke-RestMethod -Uri "$CDC_URL/api/persons" -Method Get
-$cdcStillWorks | ConvertTo-Json -Depth 10
+Write-Host "Querying Kafka (Security is DOWN but data is local):" -ForegroundColor Green
+$kafkaStillWorks = Invoke-RestMethod -Uri "$KAFKA_URL/api/persons" -Method Get
+$kafkaStillWorks | ConvertTo-Json -Depth 10
 
 Write-Host ""
 Write-Host "Restoring Security service..."
@@ -126,6 +126,6 @@ Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Key Takeaways:"
 Write-Host "  - Federation: Real-time data, but coupled availability"
-Write-Host "  - CDC: Fast local queries, but eventually consistent"
+Write-Host "  - Kafka: Fast local queries, but eventually consistent"
 Write-Host ""
 Write-Host "Open the dashboard at http://localhost:3000 to explore more!"

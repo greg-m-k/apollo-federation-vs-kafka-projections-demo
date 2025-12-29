@@ -11,10 +11,10 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/federation/, '/graphql')
       },
-      '/api/cdc': {
+      '/api/kafka': {
         target: 'http://localhost:8090',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/cdc/, '/api')
+        rewrite: (path) => path.replace(/^\/api\/kafka/, '/api')
       }
     }
   }

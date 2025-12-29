@@ -218,9 +218,9 @@ Failure: Queries work (stale data)
 │   │   ├── employment-subgraph/
 │   │   └── security-subgraph/
 │   └── kafka/                     # Kafka Projections services
-│       ├── hr-cdc-service/
-│       ├── employment-cdc-service/
-│       ├── security-cdc-service/
+│       ├── hr-events-service/
+│       ├── employment-events-service/
+│       ├── security-events-service/
 │       ├── projection-consumer/ # Kafka consumer
 │       └── query-service/       # Projection service
 │
@@ -230,7 +230,7 @@ Failure: Queries work (stale data)
 │
 ├── k8s/
 │   ├── federation/              # Federation k8s manifests
-│   ├── cdc/                     # CDC k8s manifests
+│   ├── kafka/                   # Kafka k8s manifests
 │   └── infra/                   # Shared infrastructure (postgres, kafka)
 │
 ├── tests/                       # Playwright E2E tests

@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hr-events-service
+  namespace: kafka-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hr-events-service
+  template:
+    metadata:
+      labels:
+        app: hr-events-service
+    spec:
+      containers:
+        - name: hr-events-service
+          image: hr-events-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: hr_events_db
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: KAFKA_BOOTSTRAP
+              value: kafka:9092
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hr-events-service
+  namespace: kafka-demo
+spec:
+  selector:
+    app: hr-events-service
+  ports:
+    - port: 8080
+      targetPort: 8080

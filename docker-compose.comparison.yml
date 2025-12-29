@@ -24,16 +24,16 @@ services:
       timeout: 5s
       retries: 5
 
-  # PostgreSQL for CDC services and projections
-  postgres-cdc:
+  # PostgreSQL for Kafka services and projections
+  postgres-kafka:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres123
-      POSTGRES_MULTIPLE_DATABASES: hr_cdc_db,employment_cdc_db,security_cdc_db,projections_db
+      POSTGRES_MULTIPLE_DATABASES: hr_events_db,employment_events_db,security_events_db,projections_db
     volumes:
       - ./scripts/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh
-      - postgres-cdc-data:/var/lib/postgresql/data
+      - postgres-kafka-data:/var/lib/postgresql/data
     ports:
       - "5433:5432"
     healthcheck:
@@ -81,9 +81,9 @@ services:
       - |
         echo "Creating Kafka topics..."
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic __consumer_offsets --partitions 50 --replication-factor 1 --config cleanup.policy=compact
-        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic cdc.hr.person --partitions 1 --replication-factor 1
-        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic cdc.employment.employee --partitions 1 --replication-factor 1
-        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic cdc.security.badge --partitions 1 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic events.hr.person --partitions 1 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic events.employment.employee --partitions 1 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic events.security.badge --partitions 1 --replication-factor 1
         echo "Kafka topics created successfully"
     restart: "no"
 
@@ -157,69 +157,69 @@ services:
   # KAFKA PROJECTIONS ARCHITECTURE (Event-Driven)
   # =============================================================================
 
-  hr-cdc-service:
+  hr-events-service:
     build:
-      context: ./services/kafka/hr-cdc-service
+      context: ./services/kafka/hr-events-service
       dockerfile: src/main/docker/Dockerfile.jvm
     environment:
-      DB_HOST: postgres-cdc
+      DB_HOST: postgres-kafka
       DB_PORT: 5432
-      DB_NAME: hr_cdc_db
+      DB_NAME: hr_events_db
       DB_USER: postgres
       DB_PASSWORD: postgres123
       KAFKA_BOOTSTRAP: kafka:9092
     ports:
       - "8084:8080"
     depends_on:
-      postgres-cdc:
+      postgres-kafka:
         condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
 
-  employment-cdc-service:
+  employment-events-service:
     build:
-      context: ./services/kafka/employment-cdc-service
+      context: ./services/kafka/employment-events-service
       dockerfile: src/main/docker/Dockerfile.jvm
     environment:
-      DB_HOST: postgres-cdc
+      DB_HOST: postgres-kafka
       DB_PORT: 5432
-      DB_NAME: employment_cdc_db
+      DB_NAME: employment_events_db
       DB_USER: postgres
       DB_PASSWORD: postgres123
       KAFKA_BOOTSTRAP: kafka:9092
     ports:
       - "8085:8080"
     depends_on:
-      postgres-cdc:
+      postgres-kafka:
         condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
 
-  security-cdc-service:
+  security-events-service:
     build:
-      context: ./services/kafka/security-cdc-service
+      context: ./services/kafka/security-events-service
       dockerfile: src/main/docker/Dockerfile.jvm
     environment:
-      DB_HOST: postgres-cdc
+      DB_HOST: postgres-kafka
       DB_PORT: 5432
-      DB_NAME: security_cdc_db
+      DB_NAME: security_events_db
       DB_USER: postgres
       DB_PASSWORD: postgres123
       KAFKA_BOOTSTRAP: kafka:9092
     ports:
       - "8086:8080"
     depends_on:
-      postgres-cdc:
+      postgres-kafka:
         condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
 
-  cdc-projection-consumer:
+  projection-consumer:
     build:
       context: ./services/kafka/projection-consumer
       dockerfile: src/main/docker/Dockerfile.jvm
     environment:
-      DB_HOST: postgres-cdc
+      DB_HOST: postgres-kafka
       DB_PORT: 5432
       DB_NAME: projections_db
       DB_USER: postgres
@@ -228,19 +228,19 @@ services:
     ports:
       - "8089:8080"
     depends_on:
-      postgres-cdc:
+      postgres-kafka:
         condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
-      hr-cdc-service:
+      hr-events-service:
         condition: service_started
 
-  cdc-query-service:
+  query-service:
     build:
       context: ./services/kafka/query-service
       dockerfile: src/main/docker/Dockerfile.jvm
     environment:
-      DB_HOST: postgres-cdc
+      DB_HOST: postgres-kafka
       DB_PORT: 5432
       DB_NAME: projections_db
       DB_USER: postgres
@@ -248,7 +248,7 @@ services:
     ports:
       - "8090:8080"
     depends_on:
-      cdc-projection-consumer:
+      projection-consumer:
         condition: service_started
 
   # =============================================================================
@@ -262,9 +262,9 @@ services:
       - "3000:80"
     depends_on:
       - router
-      - cdc-query-service
+      - query-service
 
 volumes:
   postgres-federation-data:
-  postgres-cdc-data:
+  postgres-kafka-data:
   kafka-data:

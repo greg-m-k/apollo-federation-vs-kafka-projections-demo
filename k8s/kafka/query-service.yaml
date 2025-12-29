@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cdc-query-service
+  name: query-service
   namespace: kafka-demo
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: cdc-query-service
+      app: query-service
   template:
     metadata:
       labels:
-        app: cdc-query-service
+        app: query-service
     spec:
       containers:
-        - name: cdc-query-service
-          image: cdc-query-service:latest
+        - name: query-service
+          image: query-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -56,12 +56,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: cdc-query-service
+  name: query-service
   namespace: kafka-demo
 spec:
   type: NodePort
   selector:
-    app: cdc-query-service
+    app: query-service
   ports:
     - port: 8080
       targetPort: 8080

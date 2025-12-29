@@ -5,12 +5,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.example</groupId>
-    <artifactId>cdc-projection-consumer</artifactId>
+    <artifactId>projection-consumer</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>CDC Projection Consumer</name>
-    <description>Kafka consumer that builds local projections from CDC events</description>
+    <name>Projection Consumer</name>
+    <description>Kafka consumer that builds local projections from events</description>
 
     <properties>
         <compiler-plugin.version>3.13.0</compiler-plugin.version>

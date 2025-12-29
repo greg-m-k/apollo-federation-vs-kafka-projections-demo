@@ -3,8 +3,8 @@ const { test, expect } = require('@playwright/test');
 
 const DASHBOARD_URL = 'http://localhost:3000';
 const FEDERATION_GRAPHQL = 'http://localhost:4000';
-const CDC_QUERY_SERVICE = 'http://localhost:8090';
-const HR_CDC_SERVICE = 'http://localhost:8084';
+const KAFKA_QUERY_SERVICE = 'http://localhost:8090';
+const HR_EVENTS_SERVICE = 'http://localhost:8084';
 
 test.describe('CRUD Operations - Federation', () => {
 
@@ -104,15 +104,15 @@ test.describe('CRUD Operations - Federation', () => {
   });
 });
 
-test.describe('CRUD Operations - CDC', () => {
+test.describe('CRUD Operations - Kafka', () => {
 
-  test('should create person via CDC and verify outbox event', async ({ request }) => {
+  test('should create person via Events service and verify outbox event', async ({ request }) => {
     const timestamp = Date.now();
-    const personName = `CDC Test ${timestamp}`;
-    const email = `cdc.test.${timestamp}@example.com`;
+    const personName = `Kafka Test ${timestamp}`;
+    const email = `kafka.test.${timestamp}@example.com`;
 
-    // CREATE via CDC service
-    const createResponse = await request.post(`${HR_CDC_SERVICE}/api/persons`, {
+    // CREATE via Events service
+    const createResponse = await request.post(`${HR_EVENTS_SERVICE}/api/persons`, {
       data: {
         name: personName,
         email: email,
@@ -128,11 +128,11 @@ test.describe('CRUD Operations - CDC', () => {
       expect(createdPerson.name).toBe(personName);
       expect(createdPerson.email).toBe(email);
 
-      // Allow time for CDC to propagate
+      // Allow time for Kafka to propagate
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Verify via query service (projection)
-      const queryResponse = await request.get(`${CDC_QUERY_SERVICE}/api/persons`);
+      const queryResponse = await request.get(`${KAFKA_QUERY_SERVICE}/api/persons`);
 
       if (queryResponse.status() === 200) {
         const persons = await queryResponse.json();
@@ -145,7 +145,7 @@ test.describe('CRUD Operations - CDC', () => {
   });
 
   test('should handle invalid request body gracefully', async ({ request }) => {
-    const response = await request.post(`${HR_CDC_SERVICE}/api/persons`, {
+    const response = await request.post(`${HR_EVENTS_SERVICE}/api/persons`, {
       data: {},  // Empty body
       headers: { 'Content-Type': 'application/json' }
     });
@@ -155,7 +155,7 @@ test.describe('CRUD Operations - CDC', () => {
   });
 
   test('should query composed view by person ID', async ({ request }) => {
-    const response = await request.get(`${CDC_QUERY_SERVICE}/api/composed/person-001`);
+    const response = await request.get(`${KAFKA_QUERY_SERVICE}/api/composed/person-001`);
 
     // May be 200 if person exists or 404 if not
     expect([200, 404]).toContain(response.status());
@@ -186,19 +186,19 @@ test.describe('Cross-Architecture Consistency', () => {
       headers: { 'Content-Type': 'application/json' }
     });
 
-    // Create in CDC
-    const cdcName = `${baseName} CDC`;
-    const cdcResponse = await request.post(`${HR_CDC_SERVICE}/api/persons`, {
+    // Create in Kafka
+    const kafkaName = `${baseName} Kafka`;
+    const kafkaResponse = await request.post(`${HR_EVENTS_SERVICE}/api/persons`, {
       data: {
-        name: cdcName,
-        email: `${timestamp}cdc@test.com`,
+        name: kafkaName,
+        email: `${timestamp}kafka@test.com`,
         hireDate: new Date().toISOString().split('T')[0]
       },
       headers: { 'Content-Type': 'application/json' }
     });
 
     expect(fedResponse.ok()).toBeTruthy();
-    expect(cdcResponse.status()).toBeLessThan(300);
+    expect(kafkaResponse.status()).toBeLessThan(300);
 
     console.log('Cross-architecture create completed successfully');
   });
@@ -214,17 +214,17 @@ test.describe('Cross-Architecture Consistency', () => {
       headers: { 'Content-Type': 'application/json' }
     });
 
-    // Query from CDC
-    const cdcResponse = await request.get(`${CDC_QUERY_SERVICE}/api/composed/${personId}`);
+    // Query from Kafka
+    const kafkaResponse = await request.get(`${KAFKA_QUERY_SERVICE}/api/composed/${personId}`);
 
     const fedData = await fedResponse.json();
 
     console.log('Federation result:', JSON.stringify(fedData).substring(0, 200));
-    console.log('CDC status:', cdcResponse.status());
+    console.log('Kafka status:', kafkaResponse.status());
 
     // Both should respond (may have different data states)
     expect(fedResponse.ok()).toBeTruthy();
-    expect([200, 404]).toContain(cdcResponse.status());
+    expect([200, 404]).toContain(kafkaResponse.status());
   });
 });
 
@@ -258,8 +258,8 @@ test.describe('Error Handling', () => {
     expect(data.errors).toBeDefined();
   });
 
-  test('should return proper error for invalid CDC endpoint', async ({ request }) => {
-    const response = await request.get(`${CDC_QUERY_SERVICE}/api/invalid-endpoint`);
+  test('should return proper error for invalid Kafka endpoint', async ({ request }) => {
+    const response = await request.get(`${KAFKA_QUERY_SERVICE}/api/invalid-endpoint`);
     expect(response.status()).toBeGreaterThanOrEqual(400);
   });
 });

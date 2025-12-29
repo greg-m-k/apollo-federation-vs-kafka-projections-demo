@@ -26,7 +26,7 @@ import static org.awaitility.Awaitility.await;
 
 /**
  * Integration tests for PersonEventConsumer.
- * Tests verify that CDC events are consumed and projections are created correctly.
+ * Tests verify that Kafka events are consumed and projections are created correctly.
  * Requires Docker for Kafka DevServices.
  */
 @QuarkusTest

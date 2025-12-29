@@ -17,7 +17,7 @@ spec:
       containers:
         - name: postgres
           image: postgres:15-alpine
-          # Enable logical replication for Debezium CDC
+          # Enable logical replication for Debezium (Change Data Capture)
           args:
             - "-c"
             - "wal_level=logical"

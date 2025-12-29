@@ -80,7 +80,7 @@ kafka-only:
 kill-security:
 	@echo "Killing Security services..."
 	kubectl scale deployment security-subgraph --replicas=0 -n federation-demo
-	kubectl scale deployment security-cdc-service --replicas=0 -n kafka-demo
+	kubectl scale deployment security-events-service --replicas=0 -n kafka-demo
 	@echo ""
 	@echo "Security services stopped!"
 	@echo "Federation queries touching Security will now fail."
@@ -90,7 +90,7 @@ kill-security:
 restore-security:
 	@echo "Restoring Security services..."
 	kubectl scale deployment security-subgraph --replicas=1 -n federation-demo
-	kubectl scale deployment security-cdc-service --replicas=1 -n kafka-demo
+	kubectl scale deployment security-events-service --replicas=1 -n kafka-demo
 	@echo ""
 	@echo "Security services restored!"
 

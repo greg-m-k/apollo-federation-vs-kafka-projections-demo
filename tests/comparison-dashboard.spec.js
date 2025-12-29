@@ -4,8 +4,8 @@ const { test, expect } = require('@playwright/test');
 // URLs for docker-compose setup
 const DASHBOARD_URL = 'http://localhost:3000';
 const FEDERATION_GRAPHQL = 'http://localhost:4000';
-const CDC_QUERY_SERVICE = 'http://localhost:8090';
-const HR_CDC_SERVICE = 'http://localhost:8084';
+const KAFKA_QUERY_SERVICE = 'http://localhost:8090';
+const HR_EVENTS_SERVICE = 'http://localhost:8084';
 
 test.describe('Federation vs Event-Driven Comparison Dashboard', () => {
 
@@ -31,9 +31,9 @@ test.describe('Federation vs Event-Driven Comparison Dashboard', () => {
     const federationPanel = page.locator('text=GraphQL Federation');
     await expect(federationPanel.first()).toBeVisible();
 
-    // Check for Event-Driven CQRS panel
-    const eventDrivenPanel = page.locator('text=Event-Driven CQRS');
-    await expect(eventDrivenPanel.first()).toBeVisible();
+    // Check for Kafka Projections panel
+    const kafkaPanel = page.locator('text=Kafka Projections');
+    await expect(kafkaPanel.first()).toBeVisible();
 
     await page.screenshot({ path: 'test-results/both-panels.png', fullPage: true });
   });
@@ -296,24 +296,24 @@ test.describe('Federation Architecture - API Tests', () => {
 test.describe('Event-Driven Architecture - API Tests', () => {
 
   test('Projection service health check should return UP', async ({ request }) => {
-    const response = await request.get(`${CDC_QUERY_SERVICE}/q/health`);
+    const response = await request.get(`${KAFKA_QUERY_SERVICE}/q/health`);
     expect(response.ok()).toBeTruthy();
 
     const data = await response.json();
     expect(data.status).toBe('UP');
   });
 
-  test('HR CDC service health check should return UP', async ({ request }) => {
-    const response = await request.get(`${HR_CDC_SERVICE}/q/health`);
+  test('HR Events service health check should return UP', async ({ request }) => {
+    const response = await request.get(`${HR_EVENTS_SERVICE}/q/health`);
     expect(response.ok()).toBeTruthy();
 
     const data = await response.json();
     expect(data.status).toBe('UP');
   });
 
-  test('should create a person via HR CDC service', async ({ request }) => {
-    const testName = `CDC Person ${Date.now()}`;
-    const response = await request.post(`${HR_CDC_SERVICE}/api/persons`, {
+  test('should create a person via HR Events service', async ({ request }) => {
+    const testName = `Kafka Person ${Date.now()}`;
+    const response = await request.post(`${HR_EVENTS_SERVICE}/api/persons`, {
       data: {
         name: testName,
         email: `${testName.toLowerCase().replace(' ', '.')}@example.com`,
@@ -333,7 +333,7 @@ test.describe('Event-Driven Architecture - API Tests', () => {
   });
 
   test('should list persons from projection service', async ({ request }) => {
-    const response = await request.get(`${CDC_QUERY_SERVICE}/api/persons`);
+    const response = await request.get(`${KAFKA_QUERY_SERVICE}/api/persons`);
     expect(response.ok()).toBeTruthy();
 
     const data = await response.json();
@@ -342,7 +342,7 @@ test.describe('Event-Driven Architecture - API Tests', () => {
   });
 
   test('should get composed view for a person', async ({ request }) => {
-    const response = await request.get(`${CDC_QUERY_SERVICE}/api/composed/person-001`);
+    const response = await request.get(`${KAFKA_QUERY_SERVICE}/api/composed/person-001`);
     expect(response.ok()).toBeTruthy();
 
     const data = await response.json();
@@ -401,9 +401,9 @@ test.describe('Architecture Comparison - Performance', () => {
     });
     const fedTime = Date.now() - fedStart;
 
-    // Event-Driven query
+    // Kafka Projections query
     const edStart = Date.now();
-    const edResponse = await request.get(`${CDC_QUERY_SERVICE}/api/persons`);
+    const edResponse = await request.get(`${KAFKA_QUERY_SERVICE}/api/persons`);
     const edTime = Date.now() - edStart;
 
     console.log(`Response times - Federation: ${fedTime}ms, Event-Driven: ${edTime}ms`);
@@ -421,7 +421,7 @@ test.describe('Architecture Comparison - Performance', () => {
 
     // Create person
     const createStart = Date.now();
-    const createResponse = await request.post(`${HR_CDC_SERVICE}/api/persons`, {
+    const createResponse = await request.post(`${HR_EVENTS_SERVICE}/api/persons`, {
       data: {
         name: testName,
         email: `${testName.toLowerCase().replace(/\s/g, '.')}@example.com`,
@@ -440,7 +440,7 @@ test.describe('Architecture Comparison - Performance', () => {
     let propagated = false;
 
     while (Date.now() - pollStart < maxWait) {
-      const checkResponse = await request.get(`${CDC_QUERY_SERVICE}/api/persons`);
+      const checkResponse = await request.get(`${KAFKA_QUERY_SERVICE}/api/persons`);
       const persons = await checkResponse.json();
       if (persons.some(p => p.id === newPerson.id)) {
         propagated = true;

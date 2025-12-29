@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for ProcessedEventRepository using H2 in-memory database.
- * Tests verify idempotency tracking for CDC event processing.
+ * Tests verify idempotency tracking for Kafka event processing.
  * These tests run without Docker.
  */
 @QuarkusTest
@@ -29,9 +29,9 @@ class ProcessedEventRepositoryTest {
         processedEventRepository.deleteAll();
 
         // Create test data
-        ProcessedEvent event1 = new ProcessedEvent("person-001-2023-12-01T10:00:00Z", "cdc.hr.person", 100L, 0);
-        ProcessedEvent event2 = new ProcessedEvent("person-002-2023-12-01T11:00:00Z", "cdc.hr.person", 101L, 0);
-        ProcessedEvent event3 = new ProcessedEvent("employee-001-2023-12-01T12:00:00Z", "cdc.employment.employee", 50L, 1);
+        ProcessedEvent event1 = new ProcessedEvent("person-001-2023-12-01T10:00:00Z", "events.hr.person", 100L, 0);
+        ProcessedEvent event2 = new ProcessedEvent("person-002-2023-12-01T11:00:00Z", "events.hr.person", 101L, 0);
+        ProcessedEvent event3 = new ProcessedEvent("employee-001-2023-12-01T12:00:00Z", "events.employment.employee", 50L, 1);
 
         processedEventRepository.persist(event1);
         processedEventRepository.persist(event2);
@@ -57,7 +57,7 @@ class ProcessedEventRepositoryTest {
         ProcessedEvent event = processedEventRepository.findById("person-001-2023-12-01T10:00:00Z");
 
         assertThat(event).isNotNull();
-        assertThat(event.topic).isEqualTo("cdc.hr.person");
+        assertThat(event.topic).isEqualTo("events.hr.person");
         assertThat(event.offset).isEqualTo(100L);
         assertThat(event.partitionId).isZero();
         assertThat(event.processedAt).isNotNull();
@@ -74,7 +74,7 @@ class ProcessedEventRepositoryTest {
     @Transactional
     void testPersistNewEvent() {
         String newEventId = "person-003-2023-12-01T13:00:00Z";
-        ProcessedEvent newEvent = new ProcessedEvent(newEventId, "cdc.hr.person", 102L, 0);
+        ProcessedEvent newEvent = new ProcessedEvent(newEventId, "events.hr.person", 102L, 0);
 
         processedEventRepository.persist(newEvent);
 
@@ -83,7 +83,7 @@ class ProcessedEventRepositoryTest {
 
         ProcessedEvent retrieved = processedEventRepository.findById(newEventId);
         assertThat(retrieved).isNotNull();
-        assertThat(retrieved.topic).isEqualTo("cdc.hr.person");
+        assertThat(retrieved.topic).isEqualTo("events.hr.person");
         assertThat(retrieved.offset).isEqualTo(102L);
     }
 
@@ -141,8 +141,8 @@ class ProcessedEventRepositoryTest {
 
     @Test
     void testCountByTopic() {
-        long personEventCount = processedEventRepository.count("topic", "cdc.hr.person");
-        long employeeEventCount = processedEventRepository.count("topic", "cdc.employment.employee");
+        long personEventCount = processedEventRepository.count("topic", "events.hr.person");
+        long employeeEventCount = processedEventRepository.count("topic", "events.employment.employee");
 
         assertThat(personEventCount).isEqualTo(2);
         assertThat(employeeEventCount).isEqualTo(1);
@@ -153,9 +153,9 @@ class ProcessedEventRepositoryTest {
     void testMultipleEventsFromSameAggregate() {
         // Simulate multiple events from the same person (different timestamps)
         String personId = "person-100";
-        ProcessedEvent created = new ProcessedEvent(personId + "-2023-12-01T10:00:00Z", "cdc.hr.person", 200L, 0);
-        ProcessedEvent updated = new ProcessedEvent(personId + "-2023-12-01T11:00:00Z", "cdc.hr.person", 201L, 0);
-        ProcessedEvent terminated = new ProcessedEvent(personId + "-2023-12-01T12:00:00Z", "cdc.hr.person", 202L, 0);
+        ProcessedEvent created = new ProcessedEvent(personId + "-2023-12-01T10:00:00Z", "events.hr.person", 200L, 0);
+        ProcessedEvent updated = new ProcessedEvent(personId + "-2023-12-01T11:00:00Z", "events.hr.person", 201L, 0);
+        ProcessedEvent terminated = new ProcessedEvent(personId + "-2023-12-01T12:00:00Z", "events.hr.person", 202L, 0);
 
         processedEventRepository.persist(created);
         processedEventRepository.persist(updated);

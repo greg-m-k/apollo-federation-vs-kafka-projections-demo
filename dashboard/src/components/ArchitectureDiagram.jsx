@@ -62,17 +62,17 @@ graph TD
 `;
   }, [stageTiming, mutationTiming, showWriteFlow]);
 
-  // Build Event-Driven CQRS diagram with timing
-  const cdcDiagram = useMemo(() => {
+  // Build Kafka Projections diagram with timing
+  const kafkaDiagram = useMemo(() => {
     if (showWriteFlow) {
-      // Write flow diagram for Event-Driven - shows the full CDC pipeline
+      // Write flow diagram for Event-Driven - shows the full Kafka pipeline
       const mutTime = mutationTiming?.mutationTime ? `|${mutationTiming.mutationTime}ms|` : '';
       const propTime = mutationTiming?.propagationTime ? `|${mutationTiming.propagationTime}ms|` : '';
 
       return `
 graph TD
-    Client[Client] -->${mutTime} CDC[HR CDC Svc]
-    CDC --> DB[(HR DB)]
+    Client[Client] -->${mutTime} Events[HR Events Svc]
+    Events --> DB[(HR DB)]
     DB --> Outbox[Outbox]
     Outbox --> Kafka[Kafka]
     Kafka -->${propTime} Consumer[Consumer]
@@ -80,7 +80,7 @@ graph TD
     Projection -.->|available| Ready[Query Ready]
 
     style Client fill:#e1f5fe
-    style CDC fill:#c8e6c9,stroke:#4caf50,stroke-width:3px
+    style Events fill:#c8e6c9,stroke:#4caf50,stroke-width:3px
     style DB fill:#e8f5e9
     style Outbox fill:#fff3e0
     style Kafka fill:#ffcdd2,stroke:#f44336,stroke-width:2px
@@ -115,7 +115,7 @@ graph TD
   useEffect(() => {
     const renderDiagram = async () => {
       if (containerRef.current) {
-        const diagram = type === 'federation' ? federationDiagram : cdcDiagram;
+        const diagram = type === 'federation' ? federationDiagram : kafkaDiagram;
         const id = `mermaid-${type}-${Date.now()}`;
 
         try {
@@ -145,7 +145,7 @@ graph TD
     };
 
     renderDiagram();
-  }, [type, federationDiagram, cdcDiagram]);
+  }, [type, federationDiagram, kafkaDiagram]);
 
   return (
     <div className="relative">

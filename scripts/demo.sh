@@ -5,8 +5,8 @@
 set -e
 
 FEDERATION_URL="http://localhost:4000"
-CDC_URL="http://localhost:8090"
-HR_CDC_URL="http://localhost:8084"
+KAFKA_URL="http://localhost:8090"
+HR_EVENTS_URL="http://localhost:8084"
 
 echo "=== ARCHITECTURE COMPARISON DEMO ==="
 echo ""
@@ -19,8 +19,8 @@ if ! curl -s "$FEDERATION_URL/.well-known/apollo/server-health" > /dev/null 2>&1
     exit 1
 fi
 
-if ! curl -s "$CDC_URL/health" > /dev/null 2>&1; then
-    echo "ERROR: CDC Query Service not responding at $CDC_URL"
+if ! curl -s "$KAFKA_URL/health" > /dev/null 2>&1; then
+    echo "ERROR: Query Service not responding at $KAFKA_URL"
     echo "Run 'make up' first to start services."
     exit 1
 fi
@@ -53,18 +53,18 @@ echo ""
 echo "Federation latency: ${FED_LATENCY}ms (3 service calls)"
 echo ""
 
-# Step 3: Query composed view from CDC
+# Step 3: Query composed view from Kafka Projections
 echo "========================================="
-echo "3. Query composed view from CDC"
+echo "3. Query composed view from Kafka Projections"
 echo "   (single local query)"
 echo "========================================="
 START=$(date +%s%N)
-CDC_RESULT=$(curl -s "$CDC_URL/api/persons")
+KAFKA_RESULT=$(curl -s "$KAFKA_URL/api/persons")
 END=$(date +%s%N)
-CDC_LATENCY=$(( (END - START) / 1000000 ))
-echo "$CDC_RESULT" | jq . 2>/dev/null || echo "$CDC_RESULT"
+KAFKA_LATENCY=$(( (END - START) / 1000000 ))
+echo "$KAFKA_RESULT" | jq . 2>/dev/null || echo "$KAFKA_RESULT"
 echo ""
-echo "CDC latency: ${CDC_LATENCY}ms (1 local query)"
+echo "Kafka latency: ${KAFKA_LATENCY}ms (1 local query)"
 echo ""
 
 # Step 4: Compare latencies
@@ -72,11 +72,11 @@ echo "========================================="
 echo "4. LATENCY COMPARISON"
 echo "========================================="
 echo "Federation: ${FED_LATENCY}ms (sync, 3 services)"
-echo "CDC:        ${CDC_LATENCY}ms (local projection)"
-if [ $FED_LATENCY -gt $CDC_LATENCY ]; then
-    DIFF=$((FED_LATENCY - CDC_LATENCY))
+echo "Kafka:      ${KAFKA_LATENCY}ms (local projection)"
+if [ $FED_LATENCY -gt $KAFKA_LATENCY ]; then
+    DIFF=$((FED_LATENCY - KAFKA_LATENCY))
     echo ""
-    echo "CDC is ${DIFF}ms faster!"
+    echo "Kafka is ${DIFF}ms faster!"
 fi
 echo ""
 
@@ -96,9 +96,9 @@ FED_FAIL=$(curl -s -X POST "$FEDERATION_URL/graphql" \
 echo "$FED_FAIL" | jq . 2>/dev/null || echo "$FED_FAIL"
 
 echo ""
-echo "Querying CDC (Security is DOWN but data is local):"
-CDC_STILL_WORKS=$(curl -s "$CDC_URL/api/persons")
-echo "$CDC_STILL_WORKS" | jq . 2>/dev/null || echo "$CDC_STILL_WORKS"
+echo "Querying Kafka (Security is DOWN but data is local):"
+KAFKA_STILL_WORKS=$(curl -s "$KAFKA_URL/api/persons")
+echo "$KAFKA_STILL_WORKS" | jq . 2>/dev/null || echo "$KAFKA_STILL_WORKS"
 
 echo ""
 echo "Restoring Security service..."
@@ -111,6 +111,6 @@ echo "========================================="
 echo ""
 echo "Key Takeaways:"
 echo "  - Federation: Real-time data, but coupled availability"
-echo "  - CDC: Fast local queries, but eventually consistent"
+echo "  - Kafka: Fast local queries, but eventually consistent"
 echo ""
 echo "Open the dashboard at http://localhost:3000 to explore more!"
