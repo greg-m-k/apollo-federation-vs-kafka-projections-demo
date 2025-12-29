@@ -1,4 +1,4 @@
-# Docker Compose for Federation vs CDC Architecture Comparison Demo
+# Docker Compose for Apollo Federation vs Kafka Projections Demo
 # Run with: docker-compose -f docker-compose.comparison.yml up
 
 services:
@@ -154,12 +154,12 @@ services:
       - security-subgraph
 
   # =============================================================================
-  # CDC ARCHITECTURE (Event-Driven)
+  # KAFKA PROJECTIONS ARCHITECTURE (Event-Driven)
   # =============================================================================
 
   hr-cdc-service:
     build:
-      context: ./services/cdc/hr-cdc-service
+      context: ./services/kafka/hr-cdc-service
       dockerfile: src/main/docker/Dockerfile.jvm
     environment:
       DB_HOST: postgres-cdc
@@ -178,7 +178,7 @@ services:
 
   employment-cdc-service:
     build:
-      context: ./services/cdc/employment-cdc-service
+      context: ./services/kafka/employment-cdc-service
       dockerfile: src/main/docker/Dockerfile.jvm
     environment:
       DB_HOST: postgres-cdc
@@ -197,7 +197,7 @@ services:
 
   security-cdc-service:
     build:
-      context: ./services/cdc/security-cdc-service
+      context: ./services/kafka/security-cdc-service
       dockerfile: src/main/docker/Dockerfile.jvm
     environment:
       DB_HOST: postgres-cdc
@@ -216,7 +216,7 @@ services:
 
   cdc-projection-consumer:
     build:
-      context: ./services/cdc/projection-consumer
+      context: ./services/kafka/projection-consumer
       dockerfile: src/main/docker/Dockerfile.jvm
     environment:
       DB_HOST: postgres-cdc
@@ -237,7 +237,7 @@ services:
 
   cdc-query-service:
     build:
-      context: ./services/cdc/query-service
+      context: ./services/kafka/query-service
       dockerfile: src/main/docker/Dockerfile.jvm
     environment:
       DB_HOST: postgres-cdc

@@ -1,11 +1,11 @@
 # -*- mode: python -*-
-# Tiltfile for Apollo-Demo: Federation vs CDC Architecture Comparison
-# ====================================================================
+# Tiltfile for Apollo Federation vs Kafka Projections Demo
+# ========================================================
 #
 # Usage:
 #   tilt up                       # Start all services
 #   tilt up -- --federation-only  # Federation stack only
-#   tilt up -- --cdc-only         # CDC stack only
+#   tilt up -- --kafka-only       # Kafka Projections stack only
 #
 # Prerequisites:
 #   - kind cluster created via: .\tilt\scripts\setup-dev.ps1
@@ -29,12 +29,12 @@ update_settings(
 
 # User settings (can be overridden via command line)
 config.define_bool('federation-only')
-config.define_bool('cdc-only')
+config.define_bool('kafka-only')
 cfg = config.parse()
 
 # Determine which stacks to deploy
-deploy_federation = not cfg.get('cdc-only', False)
-deploy_cdc = not cfg.get('federation-only', False)
+deploy_federation = not cfg.get('kafka-only', False)
+deploy_kafka = not cfg.get('federation-only', False)
 
 # ============================================================================
 # NAMESPACES
@@ -157,117 +157,117 @@ if deploy_federation:
     )
 
 # ============================================================================
-# CDC STACK
+# KAFKA PROJECTIONS STACK
 # ============================================================================
 
-if deploy_cdc:
-    # PostgreSQL for CDC
-    k8s_yaml('k8s/cdc/postgres.yaml')
+if deploy_kafka:
+    # PostgreSQL for Kafka services
+    k8s_yaml('k8s/kafka/postgres.yaml')
     k8s_resource(
-        'postgres-cdc',
+        'postgres-kafka',
         port_forwards=['5433:5432'],
-        labels=['cdc', 'infra']
+        labels=['kafka', 'infra']
     )
 
     # Kafka
-    k8s_yaml('k8s/cdc/kafka.yaml')
+    k8s_yaml('k8s/kafka/kafka.yaml')
     k8s_resource(
         'kafka',
         port_forwards=['9092:9092'],
-        resource_deps=['postgres-cdc'],
-        labels=['cdc', 'infra']
+        resource_deps=['postgres-kafka'],
+        labels=['kafka', 'infra']
     )
 
     # HR CDC Service
     quarkus_service(
         name='hr-cdc-service',
-        context='./services/cdc/hr-cdc-service',
-        namespace='cdc',
+        context='./services/kafka/hr-cdc-service',
+        namespace='kafka',
         db_name='hr_cdc_db',
         port_forward='8084:8080',
-        resource_deps=['postgres-cdc', 'kafka']
+        resource_deps=['postgres-kafka', 'kafka']
     )
-    k8s_yaml('k8s/cdc/hr-cdc-service.yaml')
+    k8s_yaml('k8s/kafka/hr-cdc-service.yaml')
     k8s_resource(
         'hr-cdc-service',
         port_forwards=['8084:8080'],
-        resource_deps=['hr-cdc-service-build', 'postgres-cdc', 'kafka'],
-        labels=['cdc', 'service']
+        resource_deps=['hr-cdc-service-build', 'postgres-kafka', 'kafka'],
+        labels=['kafka', 'service']
     )
 
     # Employment CDC Service
     quarkus_service(
         name='employment-cdc-service',
-        context='./services/cdc/employment-cdc-service',
-        namespace='cdc',
+        context='./services/kafka/employment-cdc-service',
+        namespace='kafka',
         db_name='employment_cdc_db',
         port_forward='8085:8080',
-        resource_deps=['postgres-cdc', 'kafka']
+        resource_deps=['postgres-kafka', 'kafka']
     )
-    k8s_yaml('k8s/cdc/employment-cdc-service.yaml')
+    k8s_yaml('k8s/kafka/employment-cdc-service.yaml')
     k8s_resource(
         'employment-cdc-service',
         port_forwards=['8085:8080'],
-        resource_deps=['employment-cdc-service-build', 'postgres-cdc', 'kafka'],
-        labels=['cdc', 'service']
+        resource_deps=['employment-cdc-service-build', 'postgres-kafka', 'kafka'],
+        labels=['kafka', 'service']
     )
 
     # Security CDC Service
     quarkus_service(
         name='security-cdc-service',
-        context='./services/cdc/security-cdc-service',
-        namespace='cdc',
+        context='./services/kafka/security-cdc-service',
+        namespace='kafka',
         db_name='security_cdc_db',
         port_forward='8086:8080',
-        resource_deps=['postgres-cdc', 'kafka']
+        resource_deps=['postgres-kafka', 'kafka']
     )
-    k8s_yaml('k8s/cdc/security-cdc-service.yaml')
+    k8s_yaml('k8s/kafka/security-cdc-service.yaml')
     k8s_resource(
         'security-cdc-service',
         port_forwards=['8086:8080'],
-        resource_deps=['security-cdc-service-build', 'postgres-cdc', 'kafka'],
-        labels=['cdc', 'service']
+        resource_deps=['security-cdc-service-build', 'postgres-kafka', 'kafka'],
+        labels=['kafka', 'service']
     )
 
-    # CDC Projection Consumer
+    # Projection Consumer
     quarkus_service(
-        name='cdc-projection-consumer',
-        context='./services/cdc/projection-consumer',
-        namespace='cdc',
+        name='projection-consumer',
+        context='./services/kafka/projection-consumer',
+        namespace='kafka',
         db_name='projections_db',
         port_forward='8089:8080',
-        resource_deps=['postgres-cdc', 'kafka']
+        resource_deps=['postgres-kafka', 'kafka']
     )
-    k8s_yaml('k8s/cdc/cdc-projection-consumer.yaml')
+    k8s_yaml('k8s/kafka/projection-consumer.yaml')
     k8s_resource(
-        'cdc-projection-consumer',
+        'projection-consumer',
         port_forwards=['8089:8080'],
-        resource_deps=['cdc-projection-consumer-build', 'hr-cdc-service', 'employment-cdc-service', 'security-cdc-service'],
-        labels=['cdc', 'service']
+        resource_deps=['projection-consumer-build', 'hr-cdc-service', 'employment-cdc-service', 'security-cdc-service'],
+        labels=['kafka', 'service']
     )
 
-    # CDC Query Service
+    # Query Service
     quarkus_service(
-        name='cdc-query-service',
-        context='./services/cdc/query-service',
-        namespace='cdc',
+        name='query-service',
+        context='./services/kafka/query-service',
+        namespace='kafka',
         db_name='projections_db',
         port_forward='8090:8080',
-        resource_deps=['postgres-cdc']
+        resource_deps=['postgres-kafka']
     )
-    k8s_yaml('k8s/cdc/cdc-query-service.yaml')
+    k8s_yaml('k8s/kafka/query-service.yaml')
     k8s_resource(
-        'cdc-query-service',
+        'query-service',
         port_forwards=['8090:8080'],
-        resource_deps=['cdc-query-service-build', 'cdc-projection-consumer'],
-        labels=['cdc', 'service']
+        resource_deps=['query-service-build', 'projection-consumer'],
+        labels=['kafka', 'service']
     )
 
 # ============================================================================
 # DASHBOARD
 # ============================================================================
 
-if deploy_federation and deploy_cdc:
+if deploy_federation and deploy_kafka:
     # Build dashboard
     docker_build(
         'comparison-dashboard:latest',
@@ -280,11 +280,11 @@ if deploy_federation and deploy_cdc:
     )
 
     # Deploy dashboard
-    k8s_yaml('k8s/cdc/dashboard.yaml')
+    k8s_yaml('k8s/kafka/dashboard.yaml')
     k8s_resource(
         'comparison-dashboard',
         port_forwards=['3000:80'],
-        resource_deps=['router', 'cdc-query-service'],
+        resource_deps=['router', 'query-service'],
         labels=['dashboard']
     )
 
@@ -300,15 +300,15 @@ if deploy_federation:
         labels=['federation']
     )
 
-if deploy_cdc:
+if deploy_kafka:
     local_resource(
-        'cdc-ready',
-        cmd='echo "CDC stack is ready at http://localhost:8090"',
-        resource_deps=['cdc-query-service'],
-        labels=['cdc']
+        'kafka-ready',
+        cmd='echo "Kafka Projections stack is ready at http://localhost:8090"',
+        resource_deps=['query-service'],
+        labels=['kafka']
     )
 
-if deploy_federation and deploy_cdc:
+if deploy_federation and deploy_kafka:
     local_resource(
         'all-ready',
         cmd='echo "All services ready! Dashboard: http://localhost:3000"',

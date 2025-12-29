@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: employment-cdc-service
-  namespace: cdc-demo
+  name: hr-cdc-service
+  namespace: kafka-demo
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: employment-cdc-service
+      app: hr-cdc-service
   template:
     metadata:
       labels:
-        app: employment-cdc-service
+        app: hr-cdc-service
     spec:
       containers:
-        - name: employment-cdc-service
-          image: employment-cdc-service:latest
+        - name: hr-cdc-service
+          image: hr-cdc-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -25,7 +25,7 @@ spec:
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
-              value: employment_cdc_db
+              value: hr_cdc_db
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
@@ -58,11 +58,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: employment-cdc-service
-  namespace: cdc-demo
+  name: hr-cdc-service
+  namespace: kafka-demo
 spec:
   selector:
-    app: employment-cdc-service
+    app: hr-cdc-service
   ports:
     - port: 8080
       targetPort: 8080

@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cdc-query-service
-  namespace: cdc-demo
+  name: security-cdc-service
+  namespace: kafka-demo
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: cdc-query-service
+      app: security-cdc-service
   template:
     metadata:
       labels:
-        app: cdc-query-service
+        app: security-cdc-service
     spec:
       containers:
-        - name: cdc-query-service
-          image: cdc-query-service:latest
+        - name: security-cdc-service
+          image: security-cdc-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -25,7 +25,7 @@ spec:
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
-              value: projections_db
+              value: security_cdc_db
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
@@ -36,6 +36,8 @@ spec:
                 secretKeyRef:
                   name: postgres-secret
                   key: POSTGRES_PASSWORD
+            - name: KAFKA_BOOTSTRAP
+              value: kafka:9092
           readinessProbe:
             httpGet:
               path: /q/health/ready
@@ -56,13 +58,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: cdc-query-service
-  namespace: cdc-demo
+  name: security-cdc-service
+  namespace: kafka-demo
 spec:
-  type: NodePort
   selector:
-    app: cdc-query-service
+    app: security-cdc-service
   ports:
     - port: 8080
       targetPort: 8080
-      nodePort: 30090

@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: security-cdc-service
-  namespace: cdc-demo
+  name: cdc-projection-consumer
+  namespace: kafka-demo
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: security-cdc-service
+      app: cdc-projection-consumer
   template:
     metadata:
       labels:
-        app: security-cdc-service
+        app: cdc-projection-consumer
     spec:
       containers:
-        - name: security-cdc-service
-          image: security-cdc-service:latest
+        - name: cdc-projection-consumer
+          image: cdc-projection-consumer:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -25,7 +25,7 @@ spec:
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
-              value: security_cdc_db
+              value: projections_db
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
@@ -58,11 +58,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: security-cdc-service
-  namespace: cdc-demo
+  name: cdc-projection-consumer
+  namespace: kafka-demo
 spec:
   selector:
-    app: security-cdc-service
+    app: cdc-projection-consumer
   ports:
     - port: 8080
       targetPort: 8080

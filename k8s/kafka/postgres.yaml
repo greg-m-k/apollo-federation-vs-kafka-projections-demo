@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: postgres-secret
-  namespace: cdc-demo
+  namespace: kafka-demo
 type: Opaque
 stringData:
   POSTGRES_USER: postgres
@@ -12,7 +12,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: postgres-init
-  namespace: cdc-demo
+  namespace: kafka-demo
 data:
   init.sql: |
     CREATE DATABASE hr_cdc_db;
@@ -23,8 +23,8 @@ data:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: postgres-cdc
-  namespace: cdc-demo
+  name: postgres-kafka
+  namespace: kafka-demo
 spec:
   serviceName: postgres
   replicas: 1
@@ -70,7 +70,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgres
-  namespace: cdc-demo
+  namespace: kafka-demo
 spec:
   selector:
     app: postgres

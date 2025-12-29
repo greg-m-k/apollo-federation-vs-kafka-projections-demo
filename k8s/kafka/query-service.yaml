@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cdc-projection-consumer
-  namespace: cdc-demo
+  name: cdc-query-service
+  namespace: kafka-demo
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: cdc-projection-consumer
+      app: cdc-query-service
   template:
     metadata:
       labels:
-        app: cdc-projection-consumer
+        app: cdc-query-service
     spec:
       containers:
-        - name: cdc-projection-consumer
-          image: cdc-projection-consumer:latest
+        - name: cdc-query-service
+          image: cdc-query-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -36,8 +36,6 @@ spec:
                 secretKeyRef:
                   name: postgres-secret
                   key: POSTGRES_PASSWORD
-            - name: KAFKA_BOOTSTRAP
-              value: kafka:9092
           readinessProbe:
             httpGet:
               path: /q/health/ready
@@ -58,11 +56,13 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: cdc-projection-consumer
-  namespace: cdc-demo
+  name: cdc-query-service
+  namespace: kafka-demo
 spec:
+  type: NodePort
   selector:
-    app: cdc-projection-consumer
+    app: cdc-query-service
   ports:
     - port: 8080
       targetPort: 8080
+      nodePort: 30090

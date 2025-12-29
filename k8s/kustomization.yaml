@@ -8,6 +8,6 @@ resources:
   - federation/employment-subgraph.yaml
   - federation/security-subgraph.yaml
   - federation/router.yaml
-  - cdc/postgres.yaml
-  - cdc/kafka.yaml
-  - cdc/cdc-query-service.yaml
+  - kafka/postgres.yaml
+  - kafka/kafka.yaml
+  - kafka/query-service.yaml

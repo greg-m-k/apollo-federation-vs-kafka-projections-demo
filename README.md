@@ -217,7 +217,7 @@ Failure: Queries work (stale data)
 │   │   ├── hr-subgraph/
 │   │   ├── employment-subgraph/
 │   │   └── security-subgraph/
-│   └── cdc/                     # Kafka Projections services
+│   └── kafka/                     # Kafka Projections services
 │       ├── hr-cdc-service/
 │       ├── employment-cdc-service/
 │       ├── security-cdc-service/

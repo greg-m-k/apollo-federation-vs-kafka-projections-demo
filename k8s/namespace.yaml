@@ -15,6 +15,6 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: cdc-demo
+  name: kafka-demo
   labels:
-    app.kubernetes.io/name: cdc-demo
+    app.kubernetes.io/name: kafka-demo

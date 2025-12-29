@@ -153,11 +153,11 @@ if (-not $SkipBuild) {
         "services/federation/hr-subgraph",
         "services/federation/employment-subgraph",
         "services/federation/security-subgraph",
-        "services/cdc/hr-cdc-service",
-        "services/cdc/employment-cdc-service",
-        "services/cdc/security-cdc-service",
-        "services/cdc/projection-consumer",
-        "services/cdc/query-service"
+        "services/kafka/hr-cdc-service",
+        "services/kafka/employment-cdc-service",
+        "services/kafka/security-cdc-service",
+        "services/kafka/projection-consumer",
+        "services/kafka/query-service"
     )
 
     $failed = @()
