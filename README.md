@@ -1,9 +1,9 @@
-# Federation vs Event-Driven CQRS Architecture Comparison Demo
+# Apollo Federation vs Kafka Projections Demo
 
 A side-by-side demonstration of two distributed systems architectures:
 
 1. **GraphQL Federation** - Synchronous composition, real-time data, coupled availability
-2. **Event-Driven CQRS** - Asynchronous events, local projections, eventual consistency
+2. **Kafka Projections** - Asynchronous events, local materialized views, eventual consistency
 
 Both architectures model the same domain: **Person/Employee/Badge** across HR, Employment, and Security bounded contexts.
 
@@ -34,7 +34,7 @@ make prereqs
 
 ```bash
 make federation-only   # Just Federation architecture
-make cdc-only          # Just Event-Driven CQRS architecture
+make cdc-only          # Just Kafka Projections architecture
 ```
 
 ### Stop
@@ -107,14 +107,14 @@ Once running, open the **Dashboard** at http://localhost:3000
 ### What You Can Do
 
 1. **Compare Query Performance**
-   - The dashboard shows Federation vs Event-Driven CQRS side-by-side
+   - The dashboard shows Federation vs Kafka Projections side-by-side
    - See latency differences for the same queries
    - Observe real-time vs eventual consistency
 
 2. **Create Data**
    - Use the forms to add new people
    - Both architectures will reflect the new data
-   - Event-Driven CQRS shows a brief lag before data appears
+   - Kafka Projections shows a brief lag before data appears
 
 3. **Test Failure Scenarios**
    ```bash
@@ -122,7 +122,7 @@ Once running, open the **Dashboard** at http://localhost:3000
    make restore-security  # Bring it back
    ```
    - Federation queries fail when services are down
-   - Event-Driven CQRS continues working with stale data
+   - Kafka Projections continues working with stale data
 
 4. **Run Automated Demo**
    ```bash
@@ -177,7 +177,7 @@ Consistency: REAL-TIME
 Failure: 1 service down = query fails
 ```
 
-### Event-Driven CQRS
+### Kafka Projections
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    Client Query                         │
@@ -201,7 +201,7 @@ Failure: Queries work (stale data)
 
 ## Key Tradeoffs
 
-| Aspect | Federation | Event-Driven CQRS |
+| Aspect | Federation | Kafka Projections |
 |--------|-----------|-------------------|
 | Query Latency | High (additive) | Low (local) |
 | Data Freshness | Real-time | Eventually consistent |
@@ -217,7 +217,7 @@ Failure: Queries work (stale data)
 │   │   ├── hr-subgraph/
 │   │   ├── employment-subgraph/
 │   │   └── security-subgraph/
-│   └── cdc/                     # Event-Driven CQRS services
+│   └── cdc/                     # Kafka Projections services
 │       ├── hr-cdc-service/
 │       ├── employment-cdc-service/
 │       ├── security-cdc-service/
@@ -257,7 +257,7 @@ make up               # Start all services
 make down             # Stop services
 make clean            # Full cleanup
 make federation-only  # Start Federation only
-make cdc-only         # Start Event-Driven CQRS only
+make cdc-only         # Start Kafka Projections only
 make demo             # Run demo script
 make test             # Run Playwright tests
 make kill-security    # Stop Security service
