@@ -20,6 +20,12 @@ cors:
     - Content-Type
     - Authorization
     - X-Apollo-Operation-Name
+  expose_headers:
+    - X-Subgraph-Time-Ms
+    - X-Timing-Details
+    - X-HR-Time-Ms
+    - X-Employment-Time-Ms
+    - X-Security-Time-Ms
 
 # Sandbox for development
 sandbox:
@@ -58,3 +64,25 @@ headers:
           named: "X-Request-Id"
       - propagate:
           named: "X-Correlation-Id"
+
+# Telemetry - expose subgraph timing in response extensions
+telemetry:
+  exporters:
+    logging:
+      stdout:
+        enabled: true
+        format: json
+  instrumentation:
+    spans:
+      mode: spec_compliant
+      subgraph:
+        attributes:
+          subgraph.name: true
+
+# Include subgraph extensions (for timing data)
+include_subgraph_extensions:
+  all: true
+
+# Expose timing in GraphQL extensions
+plugins:
+  experimental.expose_query_plan: true

@@ -5,6 +5,7 @@ import com.example.security.model.BadgeHolder.AccessLevel;
 import com.example.security.model.BadgeHolder.Clearance;
 import com.example.security.model.Person;
 import com.example.security.repository.BadgeHolderRepository;
+import com.example.security.timing.TimingContext;
 import io.smallrye.graphql.api.federation.Resolver;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -22,6 +23,7 @@ import java.util.UUID;
 /**
  * GraphQL API for Security/BadgeHolder subgraph.
  * This subgraph owns BadgeHolder and extends Person with badge data.
+ * All DB operations are timed and recorded in TimingContext.
  */
 @GraphQLApi
 @ApplicationScoped
@@ -30,40 +32,43 @@ public class BadgeHolderGraphQL {
     @Inject
     BadgeHolderRepository badgeHolderRepository;
 
+    @Inject
+    TimingContext timingContext;
+
     @Query("badgeHolders")
     @Description("Get all badge holders")
     public List<BadgeHolder> getAllBadgeHolders() {
-        return badgeHolderRepository.listAll();
+        return timingContext.measureOperation("db_query", () -> badgeHolderRepository.listAll());
     }
 
     @Query("badgeHolder")
     @Description("Get a badge holder by ID")
     public BadgeHolder getBadgeHolder(@Name("id") String id) {
-        return badgeHolderRepository.findById(id);
+        return timingContext.measureOperation("db_query", () -> badgeHolderRepository.findById(id));
     }
 
     @Query("badgeHolderByPersonId")
     @Description("Get a badge holder by person ID")
     public BadgeHolder getBadgeHolderByPersonId(@Name("personId") String personId) {
-        return badgeHolderRepository.findByPersonId(personId).orElse(null);
+        return timingContext.measureOperation("db_query", () -> badgeHolderRepository.findByPersonId(personId).orElse(null));
     }
 
     @Query("badgeHolderByBadgeNumber")
     @Description("Get a badge holder by badge number")
     public BadgeHolder getBadgeHolderByBadgeNumber(@Name("badgeNumber") String badgeNumber) {
-        return badgeHolderRepository.findByBadgeNumber(badgeNumber).orElse(null);
+        return timingContext.measureOperation("db_query", () -> badgeHolderRepository.findByBadgeNumber(badgeNumber).orElse(null));
     }
 
     @Query("badgeHoldersByAccessLevel")
     @Description("Get badge holders by access level")
     public List<BadgeHolder> getBadgeHoldersByAccessLevel(@Name("accessLevel") AccessLevel accessLevel) {
-        return badgeHolderRepository.findByAccessLevel(accessLevel);
+        return timingContext.measureOperation("db_query", () -> badgeHolderRepository.findByAccessLevel(accessLevel));
     }
 
     @Query("activeBadgeHolders")
     @Description("Get all active badge holders")
     public List<BadgeHolder> getActiveBadgeHolders() {
-        return badgeHolderRepository.findAllActive();
+        return timingContext.measureOperation("db_query", () -> badgeHolderRepository.findAllActive());
     }
 
     /**
@@ -72,7 +77,7 @@ public class BadgeHolderGraphQL {
      */
     @Resolver
     public BadgeHolder resolveBadgeHolder(@Name("id") String id) {
-        return badgeHolderRepository.findById(id);
+        return timingContext.measureOperation("db_resolve", () -> badgeHolderRepository.findById(id));
     }
 
     /**
@@ -93,7 +98,7 @@ public class BadgeHolderGraphQL {
         if (person.getId() == null) {
             return null;
         }
-        return badgeHolderRepository.findByPersonId(person.getId()).orElse(null);
+        return timingContext.measureOperation("db_resolve", () -> badgeHolderRepository.findByPersonId(person.getId()).orElse(null));
     }
 
     @Mutation("provisionBadge")
@@ -105,7 +110,7 @@ public class BadgeHolderGraphQL {
             @Name("clearance") Clearance clearance) {
 
         // Check if already provisioned
-        if (badgeHolderRepository.findByPersonId(personId).isPresent()) {
+        if (timingContext.measureOperation("db_read", () -> badgeHolderRepository.findByPersonId(personId)).isPresent()) {
             return null; // Already has a badge
         }
 
@@ -113,7 +118,7 @@ public class BadgeHolderGraphQL {
         String badgeNumber = "B" + System.currentTimeMillis() % 100000;
 
         BadgeHolder badgeHolder = new BadgeHolder(id, personId, badgeNumber, accessLevel, clearance);
-        badgeHolderRepository.persist(badgeHolder);
+        timingContext.measureOperation("db_write", () -> { badgeHolderRepository.persist(badgeHolder); return null; });
         return badgeHolder;
     }
 
@@ -124,7 +129,7 @@ public class BadgeHolderGraphQL {
             @Name("id") String id,
             @Name("newAccessLevel") AccessLevel newAccessLevel) {
 
-        BadgeHolder badgeHolder = badgeHolderRepository.findById(id);
+        BadgeHolder badgeHolder = timingContext.measureOperation("db_read", () -> badgeHolderRepository.findById(id));
         if (badgeHolder == null) {
             return null;
         }
@@ -139,7 +144,7 @@ public class BadgeHolderGraphQL {
             @Name("id") String id,
             @Name("newClearance") Clearance newClearance) {
 
-        BadgeHolder badgeHolder = badgeHolderRepository.findById(id);
+        BadgeHolder badgeHolder = timingContext.measureOperation("db_read", () -> badgeHolderRepository.findById(id));
         if (badgeHolder == null) {
             return null;
         }
@@ -151,7 +156,7 @@ public class BadgeHolderGraphQL {
     @Description("Revoke a badge (mark as inactive)")
     @Transactional
     public BadgeHolder revokeBadge(@Name("id") String id) {
-        BadgeHolder badgeHolder = badgeHolderRepository.findById(id);
+        BadgeHolder badgeHolder = timingContext.measureOperation("db_read", () -> badgeHolderRepository.findById(id));
         if (badgeHolder == null) {
             return null;
         }

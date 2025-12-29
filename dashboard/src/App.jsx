@@ -42,24 +42,31 @@ function App() {
     eventDriven: { mutationTime: null, propagationTime: null, totalTime: null, personName: null, personId: null }
   });
 
-  // Estimate Federation stage timing based on total latency
-  // In reality, the router makes parallel calls to subgraphs, so this is an approximation
-  // Breakdown: Client→Router (network), Router processing, Router→Subgraph (network), Subgraph→DB (query)
-  const estimateFederationTiming = (totalLatency) => {
-    const networkOverhead = Math.round(totalLatency * 0.10); // ~10% network between client and router
-    const routerProcessing = Math.round(totalLatency * 0.08); // ~8% router parse/plan/merge
-    const subgraphTime = totalLatency - networkOverhead - routerProcessing;
-    // Each subgraph: ~30% network, ~70% DB query
-    return {
-      network: networkOverhead,
-      router: routerProcessing,
-      hr: Math.round(subgraphTime * 0.35),
-      hrDb: Math.round(subgraphTime * 0.35 * 0.70),
-      employment: Math.round(subgraphTime * 0.35),
-      employmentDb: Math.round(subgraphTime * 0.35 * 0.70),
-      security: Math.round(subgraphTime * 0.30),
-      securityDb: Math.round(subgraphTime * 0.30 * 0.70)
-    };
+  // Parse timing from GraphQL response extensions
+  // Extensions come from subgraphs via Apollo Router's include_subgraph_extensions
+  // Format: { timing: { db_query: 5, db_resolve: 2, total: 15, subgraph: "hr" } }
+  const parseTimingFromExtensions = (extensions) => {
+    if (!extensions) return null;
+
+    // Check for timing extension (may be merged from multiple subgraphs)
+    const timing = extensions.timing;
+    if (timing) {
+      return {
+        db_query: timing.db_query,
+        db_resolve: timing.db_resolve,
+        total: timing.total,
+        subgraph: timing.subgraph
+      };
+    }
+
+    // Check for subgraph-specific timing keys
+    const result = {};
+    for (const key of Object.keys(extensions)) {
+      if (key.endsWith('_timing') || key === 'timing') {
+        Object.assign(result, extensions[key]);
+      }
+    }
+    return Object.keys(result).length > 0 ? result : null;
   };
 
   const [logs, setLogs] = useState({ federation: [], kafka: [] });
@@ -192,18 +199,24 @@ function App() {
 
       const data = await response.json();
       const latency = Math.round(performance.now() - startTime);
-      const stageTiming = estimateFederationTiming(latency);
+
+      // Extract timing from response extensions if available (forwarded by router)
+      const timingDetails = parseTimingFromExtensions(data.extensions);
 
       setFederationMetrics(prev => ({
         ...prev,
         latency,
-        stageTiming,
+        stageTiming: timingDetails || { total: latency },
         lastQuery: data,
         queryCount: prev.queryCount + 1,
         servicesUp: { hr: true, employment: true, security: true }
       }));
 
-      addLog('federation', `Success: ${latency}ms (Router: ${stageTiming.router}ms, HR: ${stageTiming.hr}ms, Emp: ${stageTiming.employment}ms, Sec: ${stageTiming.security}ms)`);
+      // Log with real timing details if available
+      const timingLog = timingDetails
+        ? `DB: ${timingDetails.db_query || timingDetails.db_resolve || 0}ms, Total: ${timingDetails.total || latency}ms`
+        : `${latency}ms`;
+      addLog('federation', `Success: ${timingLog} (end-to-end: ${latency}ms)`);
     } catch (error) {
       setFederationMetrics(prev => ({
         ...prev,

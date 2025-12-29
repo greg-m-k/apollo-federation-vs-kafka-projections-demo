@@ -3,6 +3,7 @@ package com.example.employment.graphql;
 import com.example.employment.model.Employee;
 import com.example.employment.model.Person;
 import com.example.employment.repository.EmployeeRepository;
+import com.example.employment.timing.TimingContext;
 import io.smallrye.graphql.api.federation.FieldSet;
 import io.smallrye.graphql.api.federation.Requires;
 import io.smallrye.graphql.api.federation.Resolver;
@@ -23,6 +24,7 @@ import java.util.UUID;
 /**
  * GraphQL API for Employment/Employee subgraph.
  * This subgraph owns Employee and extends Person with employee data.
+ * All DB operations are timed and recorded in TimingContext.
  */
 @GraphQLApi
 @ApplicationScoped
@@ -31,34 +33,37 @@ public class EmployeeGraphQL {
     @Inject
     EmployeeRepository employeeRepository;
 
+    @Inject
+    TimingContext timingContext;
+
     @Query("employees")
     @Description("Get all employees")
     public List<Employee> getAllEmployees() {
-        return employeeRepository.listAll();
+        return timingContext.measureOperation("db_query", () -> employeeRepository.listAll());
     }
 
     @Query("employee")
     @Description("Get an employee by ID")
     public Employee getEmployee(@Name("id") String id) {
-        return employeeRepository.findById(id);
+        return timingContext.measureOperation("db_query", () -> employeeRepository.findById(id));
     }
 
     @Query("employeeByPersonId")
     @Description("Get an employee by person ID")
     public Employee getEmployeeByPersonId(@Name("personId") String personId) {
-        return employeeRepository.findByPersonId(personId).orElse(null);
+        return timingContext.measureOperation("db_query", () -> employeeRepository.findByPersonId(personId).orElse(null));
     }
 
     @Query("employeesByDepartment")
     @Description("Get employees by department")
     public List<Employee> getEmployeesByDepartment(@Name("department") String department) {
-        return employeeRepository.findByDepartment(department);
+        return timingContext.measureOperation("db_query", () -> employeeRepository.findByDepartment(department));
     }
 
     @Query("activeEmployees")
     @Description("Get all active employees")
     public List<Employee> getActiveEmployees() {
-        return employeeRepository.findAllActive();
+        return timingContext.measureOperation("db_query", () -> employeeRepository.findAllActive());
     }
 
     /**
@@ -67,7 +72,7 @@ public class EmployeeGraphQL {
      */
     @Resolver
     public Employee resolveEmployee(@Name("id") String id) {
-        return employeeRepository.findById(id);
+        return timingContext.measureOperation("db_resolve", () -> employeeRepository.findById(id));
     }
 
     /**
@@ -88,7 +93,7 @@ public class EmployeeGraphQL {
         if (person.getId() == null) {
             return null;
         }
-        return employeeRepository.findByPersonId(person.getId()).orElse(null);
+        return timingContext.measureOperation("db_resolve", () -> employeeRepository.findByPersonId(person.getId()).orElse(null));
     }
 
     @Mutation("assignEmployee")
@@ -101,13 +106,13 @@ public class EmployeeGraphQL {
             @Name("salary") BigDecimal salary) {
 
         // Check if already assigned
-        if (employeeRepository.findByPersonId(personId).isPresent()) {
+        if (timingContext.measureOperation("db_read", () -> employeeRepository.findByPersonId(personId)).isPresent()) {
             return null; // Already exists
         }
 
         String id = "emp-" + UUID.randomUUID().toString().substring(0, 8);
         Employee employee = new Employee(id, personId, title, department, salary);
-        employeeRepository.persist(employee);
+        timingContext.measureOperation("db_write", () -> { employeeRepository.persist(employee); return null; });
         return employee;
     }
 
@@ -119,7 +124,7 @@ public class EmployeeGraphQL {
             @Name("newTitle") String newTitle,
             @Name("newSalary") BigDecimal newSalary) {
 
-        Employee employee = employeeRepository.findById(id);
+        Employee employee = timingContext.measureOperation("db_read", () -> employeeRepository.findById(id));
         if (employee == null) {
             return null;
         }
@@ -139,7 +144,7 @@ public class EmployeeGraphQL {
             @Name("id") String id,
             @Name("newDepartment") String newDepartment) {
 
-        Employee employee = employeeRepository.findById(id);
+        Employee employee = timingContext.measureOperation("db_read", () -> employeeRepository.findById(id));
         if (employee == null) {
             return null;
         }
@@ -151,7 +156,7 @@ public class EmployeeGraphQL {
     @Description("Mark an employee as terminated (inactive)")
     @Transactional
     public Employee terminateEmployee(@Name("id") String id) {
-        Employee employee = employeeRepository.findById(id);
+        Employee employee = timingContext.measureOperation("db_read", () -> employeeRepository.findById(id));
         if (employee == null) {
             return null;
         }

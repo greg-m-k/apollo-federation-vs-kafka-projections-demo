@@ -11,7 +11,11 @@ data:
     cors:
       allow_any_origin: true
       expose_headers:
-        - X-Subgraph-Timing
+        - X-Subgraph-Time-Ms
+        - X-Timing-Details
+        - X-HR-Time-Ms
+        - X-Employment-Time-Ms
+        - X-Security-Time-Ms
     homepage:
       enabled: false
     sandbox:
@@ -25,15 +29,19 @@ data:
     include_subgraph_extensions:
       all: true
     telemetry:
+      exporters:
+        logging:
+          stdout:
+            enabled: true
+            format: json
       instrumentation:
         spans:
+          mode: spec_compliant
           subgraph:
             attributes:
               subgraph.name: true
-      apollo:
-        send_headers:
-          only:
-            - X-Subgraph-Time-Ms
+    plugins:
+      experimental.expose_query_plan: true
   supergraph.graphql: |
     schema
       @link(url: "https://specs.apollo.dev/link/v1.0")
