@@ -14,6 +14,10 @@
 # Load extensions
 load('ext://restart_process', 'docker_build_with_restart')
 
+# Cross-platform Maven wrapper command
+# Detects OS and uses appropriate wrapper script
+mvn_cmd = '.\\\\mvnw.cmd' if os.name == 'nt' else './mvnw'
+
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
@@ -57,7 +61,7 @@ def quarkus_service(name, context, namespace, db_name, port_forward, resource_de
     # Local Maven build
     local_resource(
         name + '-build',
-        cmd='cd ' + context + ' && .\\mvnw.cmd package -DskipTests -q',
+        cmd='cd ' + context + ' && ' + mvn_cmd + ' package -DskipTests -q',
         deps=[
             context + '/src',
             context + '/pom.xml'
