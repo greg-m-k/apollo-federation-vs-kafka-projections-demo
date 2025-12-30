@@ -4,6 +4,7 @@ import com.example.employment.model.Employee;
 import com.example.employment.model.Person;
 import com.example.employment.repository.EmployeeRepository;
 import com.example.employment.timing.TimingContext;
+import io.micrometer.core.annotation.Timed;
 import io.smallrye.graphql.api.federation.FieldSet;
 import io.smallrye.graphql.api.federation.Requires;
 import io.smallrye.graphql.api.federation.Resolver;
@@ -38,18 +39,21 @@ public class EmployeeGraphQL {
 
     @Query("employees")
     @Description("Get all employees")
+    @Timed(value = "graphql.query", extraTags = {"subgraph", "employment", "operation", "employees"})
     public List<Employee> getAllEmployees() {
         return timingContext.measureOperation("db_query", () -> employeeRepository.listAll());
     }
 
     @Query("employee")
     @Description("Get an employee by ID")
+    @Timed(value = "graphql.query", extraTags = {"subgraph", "employment", "operation", "employee"})
     public Employee getEmployee(@Name("id") String id) {
         return timingContext.measureOperation("db_query", () -> employeeRepository.findById(id));
     }
 
     @Query("employeeByPersonId")
     @Description("Get an employee by person ID")
+    @Timed(value = "graphql.query", extraTags = {"subgraph", "employment", "operation", "employeeByPersonId"})
     public Employee getEmployeeByPersonId(@Name("personId") String personId) {
         return timingContext.measureOperation("db_query", () -> employeeRepository.findByPersonId(personId).orElse(null));
     }
@@ -71,6 +75,7 @@ public class EmployeeGraphQL {
      * Called when other subgraphs reference an Employee by ID.
      */
     @Resolver
+    @Timed(value = "graphql.resolve", extraTags = {"subgraph", "employment", "entity", "Employee"})
     public Employee resolveEmployee(@Name("id") String id) {
         return timingContext.measureOperation("db_resolve", () -> employeeRepository.findById(id));
     }
@@ -80,6 +85,7 @@ public class EmployeeGraphQL {
      * Resolves Person entities when the router needs employee information.
      */
     @Resolver
+    @Timed(value = "graphql.resolve", extraTags = {"subgraph", "employment", "entity", "Person"})
     public Person resolvePerson(@Name("id") String id) {
         return new Person(id);
     }
@@ -89,6 +95,7 @@ public class EmployeeGraphQL {
      * This is resolved by the employment-subgraph when a Person is queried.
      */
     @Description("The employee record for this person (if they are an employee)")
+    @Timed(value = "graphql.field", extraTags = {"subgraph", "employment", "field", "employee"})
     public Employee employee(@Source Person person) {
         if (person.getId() == null) {
             return null;

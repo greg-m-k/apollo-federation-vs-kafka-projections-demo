@@ -6,6 +6,7 @@ import com.example.security.model.BadgeHolder.Clearance;
 import com.example.security.model.Person;
 import com.example.security.repository.BadgeHolderRepository;
 import com.example.security.timing.TimingContext;
+import io.micrometer.core.annotation.Timed;
 import io.smallrye.graphql.api.federation.Resolver;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -37,18 +38,21 @@ public class BadgeHolderGraphQL {
 
     @Query("badgeHolders")
     @Description("Get all badge holders")
+    @Timed(value = "graphql.query", extraTags = {"subgraph", "security", "operation", "badgeHolders"})
     public List<BadgeHolder> getAllBadgeHolders() {
         return timingContext.measureOperation("db_query", () -> badgeHolderRepository.listAll());
     }
 
     @Query("badgeHolder")
     @Description("Get a badge holder by ID")
+    @Timed(value = "graphql.query", extraTags = {"subgraph", "security", "operation", "badgeHolder"})
     public BadgeHolder getBadgeHolder(@Name("id") String id) {
         return timingContext.measureOperation("db_query", () -> badgeHolderRepository.findById(id));
     }
 
     @Query("badgeHolderByPersonId")
     @Description("Get a badge holder by person ID")
+    @Timed(value = "graphql.query", extraTags = {"subgraph", "security", "operation", "badgeHolderByPersonId"})
     public BadgeHolder getBadgeHolderByPersonId(@Name("personId") String personId) {
         return timingContext.measureOperation("db_query", () -> badgeHolderRepository.findByPersonId(personId).orElse(null));
     }
@@ -76,6 +80,7 @@ public class BadgeHolderGraphQL {
      * Called when other subgraphs reference a BadgeHolder by ID.
      */
     @Resolver
+    @Timed(value = "graphql.resolve", extraTags = {"subgraph", "security", "entity", "BadgeHolder"})
     public BadgeHolder resolveBadgeHolder(@Name("id") String id) {
         return timingContext.measureOperation("db_resolve", () -> badgeHolderRepository.findById(id));
     }
@@ -85,6 +90,7 @@ public class BadgeHolderGraphQL {
      * Resolves Person entities when the router needs badge information.
      */
     @Resolver
+    @Timed(value = "graphql.resolve", extraTags = {"subgraph", "security", "entity", "Person"})
     public Person resolvePerson(@Name("id") String id) {
         return new Person(id);
     }
@@ -94,6 +100,7 @@ public class BadgeHolderGraphQL {
      * This is resolved by the security-subgraph when a Person is queried.
      */
     @Description("The badge holder record for this person (if they have a badge)")
+    @Timed(value = "graphql.field", extraTags = {"subgraph", "security", "field", "badge"})
     public BadgeHolder badge(@Source Person person) {
         if (person.getId() == null) {
             return null;

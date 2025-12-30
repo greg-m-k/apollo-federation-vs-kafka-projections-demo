@@ -3,6 +3,7 @@ package com.example.hr.graphql;
 import com.example.hr.model.Person;
 import com.example.hr.repository.PersonRepository;
 import com.example.hr.timing.TimingContext;
+import io.micrometer.core.annotation.Timed;
 import io.smallrye.graphql.api.federation.Resolver;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -34,12 +35,14 @@ public class PersonGraphQL {
 
     @Query("persons")
     @Description("Get all persons")
+    @Timed(value = "graphql.query", extraTags = {"subgraph", "hr", "operation", "persons"})
     public List<Person> getAllPersons() {
         return timingContext.measureOperation("db_query", () -> personRepository.listAll());
     }
 
     @Query("person")
     @Description("Get a person by ID")
+    @Timed(value = "graphql.query", extraTags = {"subgraph", "hr", "operation", "person"})
     public Person getPerson(@Name("id") String id) {
         return timingContext.measureOperation("db_query", () -> personRepository.findById(id));
     }
@@ -67,6 +70,7 @@ public class PersonGraphQL {
      * Called when other subgraphs reference a Person by ID.
      */
     @Resolver
+    @Timed(value = "graphql.resolve", extraTags = {"subgraph", "hr", "entity", "Person"})
     public Person resolvePerson(@Name("id") String id) {
         return timingContext.measureOperation("db_resolve", () -> personRepository.findById(id));
     }

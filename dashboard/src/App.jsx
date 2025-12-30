@@ -16,6 +16,24 @@ const HR_EVENTS_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:8084'
   : '/api/hr-events';
 
+// Projection consumer for timing metrics
+const CONSUMER_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:8089'
+  : '/api/consumer';
+
+// Subgraph metrics endpoints (Micrometer Prometheus format)
+const SUBGRAPH_METRICS = window.location.hostname === 'localhost'
+  ? {
+      hr: 'http://localhost:8091/q/metrics',
+      employment: 'http://localhost:8092/q/metrics',
+      security: 'http://localhost:8093/q/metrics'
+    }
+  : {
+      hr: '/api/hr-subgraph/q/metrics',
+      employment: '/api/employment-subgraph/q/metrics',
+      security: '/api/security-subgraph/q/metrics'
+    };
+
 function App() {
   const [federationMetrics, setFederationMetrics] = useState({
     latency: null,
@@ -38,35 +56,41 @@ function App() {
 
   // Mutation metrics - comparing write performance
   const [mutationMetrics, setMutationMetrics] = useState({
-    federation: { mutationTime: null, totalTime: null, personName: null, personId: null },
-    eventDriven: { mutationTime: null, propagationTime: null, totalTime: null, personName: null, personId: null }
+    federation: { mutationTime: null, totalTime: null, personName: null, personId: null, routerOverhead: null, hrTime: null, hrDbTime: null },
+    eventDriven: { mutationTime: null, propagationTime: null, totalTime: null, personName: null, personId: null, dbWriteTime: null, outboxWriteTime: null, serviceTime: null, outboxToKafkaMs: null, consumerToProjectionMs: null }
   });
 
-  // Parse timing from GraphQL response extensions
-  // Extensions come from subgraphs via Apollo Router's include_subgraph_extensions
-  // Format: { timing: { db_query: 5, db_resolve: 2, total: 15, subgraph: "hr" } }
-  const parseTimingFromExtensions = (extensions) => {
-    if (!extensions) return null;
+  // Extract per-subgraph timing from response headers
+  // Headers: X-HR-Time-Ms, X-Employment-Time-Ms, X-Security-Time-Ms
+  // Detail Headers: X-HR-Timing-Details, X-Employment-Timing-Details, X-Security-Timing-Details
+  const extractTimingFromHeaders = (response) => {
+    const timing = {
+      hr: null, employment: null, security: null,
+      hrDb: null, employmentDb: null, securityDb: null
+    };
 
-    // Check for timing extension (may be merged from multiple subgraphs)
-    const timing = extensions.timing;
-    if (timing) {
-      return {
-        db_query: timing.db_query,
-        db_resolve: timing.db_resolve,
-        total: timing.total,
-        subgraph: timing.subgraph
-      };
-    }
+    const hrTime = response.headers.get('X-HR-Time-Ms');
+    const empTime = response.headers.get('X-Employment-Time-Ms');
+    const secTime = response.headers.get('X-Security-Time-Ms');
 
-    // Check for subgraph-specific timing keys
-    const result = {};
-    for (const key of Object.keys(extensions)) {
-      if (key.endsWith('_timing') || key === 'timing') {
-        Object.assign(result, extensions[key]);
-      }
-    }
-    return Object.keys(result).length > 0 ? result : null;
+    if (hrTime) timing.hr = parseInt(hrTime, 10);
+    if (empTime) timing.employment = parseInt(empTime, 10);
+    if (secTime) timing.security = parseInt(secTime, 10);
+
+    // Extract detailed db timing from JSON headers
+    const parseDetails = (detailsHeader) => {
+      if (!detailsHeader) return null;
+      try {
+        const details = JSON.parse(detailsHeader);
+        return details.db_query || details.db_resolve || null;
+      } catch { return null; }
+    };
+
+    timing.hrDb = parseDetails(response.headers.get('X-HR-Timing-Details'));
+    timing.employmentDb = parseDetails(response.headers.get('X-Employment-Timing-Details'));
+    timing.securityDb = parseDetails(response.headers.get('X-Security-Timing-Details'));
+
+    return timing;
   };
 
   const [logs, setLogs] = useState({ federation: [], kafka: [] });
@@ -151,8 +175,8 @@ function App() {
   // Clear mutation metrics to switch diagrams back to read flow
   const clearMutationMetrics = useCallback(() => {
     setMutationMetrics({
-      federation: { mutationTime: null, totalTime: null, personName: null, personId: null },
-      eventDriven: { mutationTime: null, propagationTime: null, totalTime: null, personName: null, personId: null }
+      federation: { mutationTime: null, totalTime: null, personName: null, personId: null, routerOverhead: null, hrTime: null, hrDbTime: null },
+      eventDriven: { mutationTime: null, propagationTime: null, totalTime: null, personName: null, personId: null, dbWriteTime: null, outboxWriteTime: null, serviceTime: null, outboxToKafkaMs: null, consumerToProjectionMs: null }
     });
   }, []);
 
@@ -197,25 +221,28 @@ function App() {
         body: JSON.stringify({ query })
       });
 
-      const data = await response.json();
       const latency = Math.round(performance.now() - startTime);
 
-      // Extract timing from response extensions if available (forwarded by router)
-      const timingDetails = parseTimingFromExtensions(data.extensions);
+      // Extract per-subgraph timing from response headers
+      const subgraphTiming = extractTimingFromHeaders(response);
+
+      const data = await response.json();
 
       setFederationMetrics(prev => ({
         ...prev,
         latency,
-        stageTiming: timingDetails || { total: latency },
+        stageTiming: { ...subgraphTiming, total: latency },
         lastQuery: data,
         queryCount: prev.queryCount + 1,
         servicesUp: { hr: true, employment: true, security: true }
       }));
 
-      // Log with real timing details if available
-      const timingLog = timingDetails
-        ? `DB: ${timingDetails.db_query || timingDetails.db_resolve || 0}ms, Total: ${timingDetails.total || latency}ms`
-        : `${latency}ms`;
+      // Log with per-subgraph timing if available
+      const timingParts = [];
+      if (subgraphTiming.hr) timingParts.push(`HR: ${subgraphTiming.hr}ms`);
+      if (subgraphTiming.employment) timingParts.push(`Emp: ${subgraphTiming.employment}ms`);
+      if (subgraphTiming.security) timingParts.push(`Sec: ${subgraphTiming.security}ms`);
+      const timingLog = timingParts.length > 0 ? timingParts.join(', ') : `${latency}ms`;
       addLog('federation', `Success: ${timingLog} (end-to-end: ${latency}ms)`);
     } catch (error) {
       setFederationMetrics(prev => ({
@@ -313,13 +340,37 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: mutation })
       });
-      const fedData = await fedResponse.json();
       fedMutationTime = Math.round(performance.now() - fedStart);
+
+      // Extract timing from headers (mutation only hits HR subgraph)
+      const hrTime = fedResponse.headers.get('X-HR-Time-Ms');
+      const hrDetails = fedResponse.headers.get('X-HR-Timing-Details');
+      let hrDbTime = null;
+      if (hrDetails) {
+        try {
+          const details = JSON.parse(hrDetails);
+          hrDbTime = details.db_write || details.db_query || null;
+        } catch {}
+      }
+
+      const fedData = await fedResponse.json();
       fedPersonId = fedData?.data?.createPerson?.id;
+
+      // Calculate overhead (total - HR subgraph time)
+      const hrSubgraphTime = hrTime ? parseInt(hrTime, 10) : null;
+      const routerOverhead = hrSubgraphTime ? Math.max(0, fedMutationTime - hrSubgraphTime) : null;
 
       setMutationMetrics(prev => ({
         ...prev,
-        federation: { mutationTime: fedMutationTime, totalTime: fedMutationTime, personName: name, personId: fedPersonId }
+        federation: {
+          mutationTime: fedMutationTime,
+          totalTime: fedMutationTime,
+          personName: name,
+          personId: fedPersonId,
+          routerOverhead,
+          hrTime: hrSubgraphTime,
+          hrDbTime
+        }
       }));
 
       // Update service status to show services are up
@@ -350,15 +401,53 @@ function App() {
       const newPerson = await response.json();
       const mutationTime = Math.round(performance.now() - kafkaStart);
 
+      // Extract detailed timing from hr-events-service headers
+      const hrEventsTime = response.headers.get('X-HR-Events-Time-Ms');
+      const hrEventsDetails = response.headers.get('X-HR-Events-Timing-Details');
+      let dbWriteTime = null;
+      let outboxWriteTime = null;
+      if (hrEventsDetails) {
+        try {
+          const details = JSON.parse(hrEventsDetails);
+          dbWriteTime = details.db_write ?? null;
+          outboxWriteTime = details.outbox_write ?? null;
+        } catch {}
+      }
+
       addLog('kafka', `Mutation complete: ${mutationTime}ms. Waiting for Kafka propagation...`);
 
       // Now measure propagation time (how long until it appears in projection)
       const propagationTime = await waitForPropagation(newPerson.id);
       const totalTime = mutationTime + (propagationTime || 0);
 
+      // Fetch detailed timing breakdown from consumer
+      let outboxToKafkaMs = null;
+      let consumerToProjectionMs = null;
+      try {
+        const timingResponse = await fetch(`${CONSUMER_URL}/api/metrics/timing/${newPerson.id}`);
+        if (timingResponse.ok) {
+          const timingData = await timingResponse.json();
+          outboxToKafkaMs = timingData.outboxToKafkaMs;
+          consumerToProjectionMs = timingData.consumerToProjectionMs;
+        }
+      } catch (e) {
+        console.log('Could not fetch timing breakdown:', e);
+      }
+
       setMutationMetrics(prev => ({
         ...prev,
-        eventDriven: { mutationTime, propagationTime, totalTime, personName: name, personId: newPerson?.id }
+        eventDriven: {
+          mutationTime,
+          propagationTime,
+          totalTime,
+          personName: name,
+          personId: newPerson?.id,
+          dbWriteTime,
+          outboxWriteTime,
+          serviceTime: hrEventsTime ? parseInt(hrEventsTime, 10) : null,
+          outboxToKafkaMs,
+          consumerToProjectionMs
+        }
       }));
 
       // Update service status to show services are up
@@ -368,7 +457,10 @@ function App() {
       }));
 
       if (propagationTime !== null) {
-        addLog('kafka', `Propagated in ${propagationTime}ms. Total: ${totalTime}ms (mutation: ${mutationTime}ms + propagation: ${propagationTime}ms)`);
+        const timingDetails = outboxToKafkaMs != null
+          ? ` (outbox→kafka: ${outboxToKafkaMs}ms, consumer→projection: ${consumerToProjectionMs}ms)`
+          : '';
+        addLog('kafka', `Propagated in ${propagationTime}ms${timingDetails}. Total: ${totalTime}ms`);
       } else {
         addLog('kafka', `WARNING: Propagation timeout after 10s`);
       }
@@ -390,8 +482,9 @@ function App() {
       {/* Header */}
       <header className="bg-gradient-to-r from-blue-800 to-purple-800 text-white p-4 shadow-lg">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl font-bold">Architecture Comparison Dashboard</h1>
+          <h1 className="text-2xl font-bold">Live Architectural Comparison</h1>
           <p className="text-blue-200 text-sm">GraphQL Federation vs Kafka Projections</p>
+          <p className="text-blue-200 text-sm">We use an actual kubernetes cluster to run both architectures in parallel via Tilt! Please explore the patterns by querying and creating people and mousing over the various numbers and elements. You will see the results in the diagrams of the patterns themselves.</p>
         </div>
       </header>
 

@@ -3,11 +3,15 @@ package com.example.projection.resource;
 import com.example.projection.repository.BadgeProjectionRepository;
 import com.example.projection.repository.EmployeeProjectionRepository;
 import com.example.projection.repository.PersonProjectionRepository;
+import com.example.projection.timing.PropagationTiming;
+import com.example.projection.timing.TimingStore;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -28,6 +32,9 @@ public class MetricsResource {
 
     @Inject
     BadgeProjectionRepository badgeRepository;
+
+    @Inject
+    TimingStore timingStore;
 
     @GET
     @Path("/freshness")
@@ -81,5 +88,28 @@ public class MetricsResource {
         } else {
             return String.format("%.1fm", lagMs / 60000.0);
         }
+    }
+
+    /**
+     * Get propagation timing breakdown for a specific entity.
+     * Returns timing for: outbox->kafka, kafka->consumer, consumer->projection
+     */
+    @GET
+    @Path("/timing/{entityId}")
+    public Response getTiming(@PathParam("entityId") String entityId) {
+        return timingStore.get(entityId)
+            .map(timing -> Response.ok(Map.of(
+                "entityId", timing.entityId(),
+                "eventType", timing.eventType(),
+                "outboxToKafkaMs", timing.outboxToKafkaMs(),
+                "consumerToProjectionMs", timing.consumerToProjectionMs(),
+                "totalPropagationMs", timing.totalPropagationMs(),
+                "eventCreatedAt", timing.eventCreatedAt().toString(),
+                "kafkaReceivedAt", timing.kafkaReceivedAt().toString(),
+                "projectionUpdatedAt", timing.projectionUpdatedAt().toString()
+            )).build())
+            .orElse(Response.status(Response.Status.NOT_FOUND)
+                .entity(Map.of("error", "No timing data for " + entityId))
+                .build());
     }
 }

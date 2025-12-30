@@ -1,154 +1,155 @@
-# Quickstart: Quarkus GraphQL Demo
+# Quickstart: GraphQL Federation vs Kafka Projections Demo
 
-Get the GraphQL demo running in under 2 minutes.
+Compare two architectural approaches for distributed data composition in under 5 minutes.
 
 ## Prerequisites
 
-- Docker Desktop (or Docker Engine + Docker Compose)
-- No Java, Maven, or other tools required
+- Docker Desktop with Kubernetes enabled (or Kind cluster)
+- [Tilt](https://tilt.dev/) installed (`brew install tilt` or [download](https://docs.tilt.dev/install.html))
+- ~4GB available RAM for the cluster
 
-## Start the Application
+## Start the Demo
 
 ```bash
 # Clone and start
 git clone <repository-url>
 cd apollo-demo
-docker compose up
+tilt up
 ```
 
-**First run**: Expect 2-3 minutes for Maven to download dependencies and build.
-**Subsequent runs**: Starts in ~30 seconds.
+Open **http://localhost:10350** to watch services build and deploy.
 
-## Access the GraphQL Interface
+**First run**: Expect 3-5 minutes for Maven builds and image creation.
+**Subsequent runs**: Services start in ~30 seconds.
 
-Once you see `Quarkus ... started in X.XXXs` in the logs:
+## Access the Comparison Dashboard
 
-1. Open your browser to: **http://localhost:8080/q/graphql-ui/**
-2. You'll see GraphiQL - an interactive GraphQL explorer
+Once Tilt shows all services green, open:
 
-## Try Your First Query
+**http://localhost:3000** - Live Architectural Comparison Dashboard
 
-Paste this into the left panel and click the **Play** button:
+## What You'll See
 
-```graphql
-query {
-  products {
-    id
-    name
-    price
-    category {
-      name
-    }
-  }
-}
+The dashboard compares two approaches side-by-side:
+
+### GraphQL Federation (Left Panel)
+- Apollo Router composing 3 subgraphs (HR, Employment, Security)
+- Synchronous real-time data composition
+- Per-subgraph timing displayed on diagram edges
+
+### Kafka Projections (Right Panel)
+- Event-driven CQRS with local projections
+- Asynchronous eventual consistency
+- Single-hop queries from pre-composed data
+
+## Try It Out
+
+1. **Query Both Architectures**: Click the blue button to fetch the same person from both systems
+2. **Create Person**: Add a new person and watch:
+   - Federation: Immediate availability
+   - Kafka: Propagation delay through Kafka → Consumer → Projection
+3. **Compare Timing**: Observe per-service latency on the architecture diagrams
+
+## Timing Instrumentation
+
+The demo includes comprehensive timing headers:
+
+### Federation Headers
+| Header | Description |
+|--------|-------------|
+| `X-HR-Time-Ms` | HR subgraph total time |
+| `X-Employment-Time-Ms` | Employment subgraph total time |
+| `X-Security-Time-Ms` | Security subgraph total time |
+| `X-*-Timing-Details` | JSON breakdown (db_query, db_resolve, etc.) |
+
+### Kafka Headers
+| Header | Description |
+|--------|-------------|
+| `X-Query-Time-Ms` | Projection service query time |
+| `X-Data-Freshness` | Age of projected data |
+| `X-HR-Events-Time-Ms` | HR Events service mutation time |
+| `X-HR-Events-Timing-Details` | JSON breakdown (db_write, outbox_write) |
+
+## Architecture Overview
+
 ```
+┌─────────────────────────────────────────────────────────────────┐
+│                    FEDERATION SIDE                               │
+├─────────────────────────────────────────────────────────────────┤
+│  Client → Router → HR Subgraph    → PostgreSQL                  │
+│                  → Employment     → PostgreSQL                  │
+│                  → Security       → PostgreSQL                  │
+└─────────────────────────────────────────────────────────────────┘
 
-Expected response:
-
-```json
-{
-  "data": {
-    "products": [
-      {
-        "id": "1",
-        "name": "Laptop",
-        "price": 999.99,
-        "category": {
-          "name": "Electronics"
-        }
-      },
-      ...
-    ]
-  }
-}
+┌─────────────────────────────────────────────────────────────────┐
+│                    KAFKA SIDE                                    │
+├─────────────────────────────────────────────────────────────────┤
+│  Client → Projection Service → Local Projections (PostgreSQL)  │
+│                                                                  │
+│  HR Events Svc → Outbox → Kafka → Consumer → Projections       │
+│  (write path)              (async propagation)                  │
+└─────────────────────────────────────────────────────────────────┘
 ```
-
-## More Example Queries
-
-### Get a single product
-
-```graphql
-query {
-  product(id: "1") {
-    name
-    description
-    price
-  }
-}
-```
-
-### List categories with their products
-
-```graphql
-query {
-  categories {
-    name
-    description
-    products {
-      name
-      price
-    }
-  }
-}
-```
-
-### Explore the schema
-
-Click the **Docs** button (top right in GraphiQL) to browse all available types, queries, and their descriptions.
 
 ## Useful URLs
 
 | URL | Purpose |
 |-----|---------|
-| http://localhost:8080/q/graphql-ui/ | GraphiQL interactive explorer |
-| http://localhost:8080/graphql | GraphQL endpoint (for programmatic access) |
-| http://localhost:8080/q/health | Health check endpoints |
-| http://localhost:8080/q/health/ready | Readiness probe |
-| http://localhost:8080/q/health/live | Liveness probe |
+| http://localhost:3000 | Comparison Dashboard |
+| http://localhost:4000 | Apollo Router GraphQL endpoint |
+| http://localhost:10350 | Tilt UI |
+| http://localhost:8090/api/composed/{personId} | Kafka query service |
+| http://localhost:8084/api/persons | HR Events service (mutations) |
 
-## Stopping the Application
+## Example GraphQL Query
+
+```graphql
+{
+  person(id: "person-001") {
+    id
+    name
+    email
+    employee {
+      title
+      department
+    }
+    badge {
+      badgeNumber
+      accessLevel
+    }
+  }
+}
+```
+
+## Stopping the Demo
 
 ```bash
-# Stop containers (preserves build cache)
-docker compose down
+# Stop all services (keeps images)
+tilt down
 
-# Stop and remove everything including build cache
-docker compose down --rmi all
+# For CI/batch mode (auto-exits)
+tilt ci --timeout 5m
 ```
 
 ## Troubleshooting
 
-### Port 8080 is already in use
+### Services won't start
+```bash
+# Check Tilt status
+tilt get uiresources
 
-Edit `docker-compose.yml` and change the port mapping:
-
-```yaml
-ports:
-  - "8081:8080"  # Change 8081 to any available port
+# View logs for specific service
+kubectl logs -n federation-demo -l app=hr-subgraph
 ```
 
-Then access the app at http://localhost:8081/q/graphql-ui/
-
-### Build fails or is slow
-
-First build downloads ~200MB of dependencies. Ensure stable internet connection.
-
+### Port conflicts
+Tilt handles port-forwarding automatically. If ports are in use:
 ```bash
-# Force rebuild from scratch
-docker compose build --no-cache
-docker compose up
+# Check what's using a port
+netstat -ano | findstr :4000
 ```
 
-### Container won't start
-
-Check Docker is running:
-
+### Rebuild a service
 ```bash
-docker info
-```
-
-View detailed logs:
-
-```bash
-docker compose logs -f
+tilt trigger hr-subgraph-build
 ```

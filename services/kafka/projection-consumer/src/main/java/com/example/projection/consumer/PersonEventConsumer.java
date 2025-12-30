@@ -4,6 +4,8 @@ import com.example.projection.model.PersonProjection;
 import com.example.projection.model.ProcessedEvent;
 import com.example.projection.repository.PersonProjectionRepository;
 import com.example.projection.repository.ProcessedEventRepository;
+import com.example.projection.timing.PropagationTiming;
+import com.example.projection.timing.TimingStore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.smallrye.reactive.messaging.kafka.Record;
@@ -30,9 +32,14 @@ public class PersonEventConsumer {
     @Inject
     ObjectMapper objectMapper;
 
+    @Inject
+    TimingStore timingStore;
+
     @Incoming("person-events")
     @Transactional
     public void consume(Record<String, String> record) {
+        Instant kafkaReceivedAt = Instant.now();
+
         try {
             String key = record.key();
             String value = record.value();
@@ -43,6 +50,9 @@ public class PersonEventConsumer {
             String eventType = eventNode.get("eventType").asText();
             String personId = eventNode.get("personId").asText();
             JsonNode data = eventNode.get("data");
+
+            // Parse event creation timestamp
+            Instant eventCreatedAt = Instant.parse(eventNode.get("timestamp").asText());
 
             // Generate unique event ID for idempotency
             String eventId = "person-" + personId + "-" + eventNode.get("timestamp").asText();
@@ -72,10 +82,17 @@ public class PersonEventConsumer {
 
             personRepository.persist(projection);
 
+            // Record timing after projection is updated
+            Instant projectionUpdatedAt = Instant.now();
+            PropagationTiming timing = PropagationTiming.calculate(
+                personId, eventType, eventCreatedAt, kafkaReceivedAt, projectionUpdatedAt);
+            timingStore.record(timing);
+
+            LOG.infof("Processed %s for person %s (outbox->kafka: %dms, consumer->projection: %dms)",
+                eventType, personId, timing.outboxToKafkaMs(), timing.consumerToProjectionMs());
+
             // Mark as processed
             processedEventRepository.persist(new ProcessedEvent(eventId, "events.hr.person", 0L, 0));
-
-            LOG.infof("Processed %s for person %s", eventType, personId);
         } catch (Exception e) {
             LOG.errorf(e, "Failed to process person event");
             throw new RuntimeException("Failed to process person event", e);

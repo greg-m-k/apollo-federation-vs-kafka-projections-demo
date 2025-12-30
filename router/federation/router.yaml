@@ -26,6 +26,9 @@ cors:
     - X-HR-Time-Ms
     - X-Employment-Time-Ms
     - X-Security-Time-Ms
+    - X-HR-Timing-Details
+    - X-Employment-Timing-Details
+    - X-Security-Timing-Details
 
 # Sandbox for development
 sandbox:
@@ -65,23 +68,18 @@ headers:
       - propagate:
           named: "X-Correlation-Id"
 
-# Telemetry - expose subgraph timing in response extensions
+# Rhai script for timing header propagation
+rhai:
+  scripts: /config
+  main: timing.rhai
+
+# Telemetry - basic logging
 telemetry:
   exporters:
     logging:
       stdout:
         enabled: true
         format: json
-  instrumentation:
-    spans:
-      mode: spec_compliant
-      subgraph:
-        attributes:
-          subgraph.name: true
-
-# Include subgraph extensions (for timing data)
-include_subgraph_extensions:
-  all: true
 
 # Expose timing in GraphQL extensions
 plugins:

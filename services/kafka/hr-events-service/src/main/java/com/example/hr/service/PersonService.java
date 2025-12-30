@@ -6,6 +6,7 @@ import com.example.hr.model.OutboxEvent;
 import com.example.hr.model.Person;
 import com.example.hr.repository.OutboxRepository;
 import com.example.hr.repository.PersonRepository;
+import com.example.hr.timing.TimingContext;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -32,21 +33,29 @@ public class PersonService {
     @Inject
     ObjectMapper objectMapper;
 
+    @Inject
+    TimingContext timingContext;
+
     public List<Person> getAllPersons() {
-        return personRepository.listAll();
+        return timingContext.measureOperation("db_query", () -> personRepository.listAll());
     }
 
     public Person getPerson(String id) {
-        return personRepository.findById(id);
+        return timingContext.measureOperation("db_query", () -> personRepository.findById(id));
     }
 
     @Transactional
     public Person createPerson(PersonInput input) {
         String id = "person-" + UUID.randomUUID().toString().substring(0, 8);
         Person person = new Person(id, input.name(), input.email(), input.hireDate());
-        personRepository.persist(person);
 
-        // Create outbox event in same transaction
+        // Measure person persist
+        timingContext.measureOperation("db_write", () -> {
+            personRepository.persist(person);
+            return null;
+        });
+
+        // Create outbox event in same transaction (measured separately)
         createOutboxEvent("PersonCreated", person);
 
         return person;
@@ -54,7 +63,7 @@ public class PersonService {
 
     @Transactional
     public Person updatePerson(String id, String name, String email) {
-        Person person = personRepository.findById(id);
+        Person person = timingContext.measureOperation("db_read", () -> personRepository.findById(id));
         if (person == null) {
             return null;
         }
@@ -65,6 +74,7 @@ public class PersonService {
         if (email != null) {
             person.email = email;
         }
+        timingContext.recordTiming("db_write", 0); // Implicit on transaction commit
 
         // Create outbox event in same transaction
         createOutboxEvent("PersonUpdated", person);
@@ -74,12 +84,13 @@ public class PersonService {
 
     @Transactional
     public Person terminatePerson(String id) {
-        Person person = personRepository.findById(id);
+        Person person = timingContext.measureOperation("db_read", () -> personRepository.findById(id));
         if (person == null) {
             return null;
         }
 
         person.active = false;
+        timingContext.recordTiming("db_write", 0); // Implicit on transaction commit
 
         // Create outbox event in same transaction
         createOutboxEvent("PersonTerminated", person);
@@ -96,7 +107,10 @@ public class PersonService {
             String payload = objectMapper.writeValueAsString(event);
 
             OutboxEvent outboxEvent = new OutboxEvent("hr.person", person.id, eventType, payload);
-            outboxRepository.persist(outboxEvent);
+            timingContext.measureOperation("outbox_write", () -> {
+                outboxRepository.persist(outboxEvent);
+                return null;
+            });
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to serialize person event", e);
         }

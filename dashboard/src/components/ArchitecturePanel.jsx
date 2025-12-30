@@ -36,7 +36,20 @@ function ArchitecturePanel({ title, type, metrics, logs, onQuery, mutationTiming
 
       {/* Architecture Diagram */}
       <div className="mb-4">
-        <ArchitectureDiagram type={type} stageTiming={metrics.stageTiming} mutationTiming={mutationTiming} />
+        <ArchitectureDiagram type={type} stageTiming={metrics.stageTiming} mutationTiming={mutationTiming} showExplanation={true} />
+        {/* Timing explanation */}
+        {isFederation && metrics.stageTiming?.hr && (
+          <div className="mt-2 px-2 py-1 bg-gray-100 rounded text-xs text-gray-600">
+            <strong>Reading the diagram:</strong> Subgraphs run in <em>parallel</em>, so Total = Overhead + max(subgraph times).
+            DB times are <em>included</em> in subgraph times, not additive.
+            {' '}<a href="https://www.apollographql.com/docs/federation/query-plans" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Learn more →</a>
+          </div>
+        )}
+        {!isFederation && metrics.stageTiming?.queryService && (
+          <div className="mt-2 px-2 py-1 bg-gray-100 rounded text-xs text-gray-600">
+            <strong>Reading the diagram:</strong> Single service call to local projection database. No network hops to source services.
+          </div>
+        )}
       </div>
 
       {/* Service Status */}

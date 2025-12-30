@@ -12,7 +12,7 @@ import jakarta.inject.Inject;
 public class TimingFilter {
 
     private static final String START_TIME_KEY = "request-start-time";
-    private static final String TIMING_HEADER = "X-Subgraph-Time-Ms";
+    private static final String TIMING_HEADER = "X-Security-Time-Ms";
     private static final String TIMING_DETAILS_HEADER = "X-Timing-Details";
 
     @Inject
