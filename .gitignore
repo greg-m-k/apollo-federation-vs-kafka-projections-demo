@@ -50,6 +50,7 @@ build/
 *.tmp
 *.temp
 nul
+*.png
 
 # Local settings
 .claude/settings.local.json

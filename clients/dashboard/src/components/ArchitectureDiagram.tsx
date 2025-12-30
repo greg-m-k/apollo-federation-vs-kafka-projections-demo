@@ -6,8 +6,8 @@ mermaid.initialize({
   theme: 'neutral',
   securityLevel: 'loose',
   themeCSS: `
-    .edgeLabel { font-size: 0.7em !important; }
-    .edgeLabel p { font-size: 0.7em !important; }
+    .edgeLabel { font-size: .92em !important; }
+    .edgeLabel p { font-size: .92em !important; }
   `
 });
 
