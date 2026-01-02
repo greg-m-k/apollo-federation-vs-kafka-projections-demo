@@ -21,7 +21,7 @@ fi
 
 # Download Maven distribution if wrapper JAR exists
 if [ -f "$MAVEN_WRAPPER_JAR" ]; then
-    java -cp "$MAVEN_WRAPPER_JAR" org.apache.maven.wrapper.MavenWrapperMain "$@"
+    java -cp "$MAVEN_WRAPPER_JAR" "-Dmaven.multiModuleProjectDirectory=$MAVEN_PROJECTBASEDIR" org.apache.maven.wrapper.MavenWrapperMain "$@"
 else
     # Fallback to system Maven
     if command -v mvn > /dev/null; then
