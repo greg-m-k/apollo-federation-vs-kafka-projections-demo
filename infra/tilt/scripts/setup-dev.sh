@@ -94,15 +94,15 @@ else
     ALL_GOOD=false
 fi
 
-# Java
-if command_exists java; then
-    # java -version writes to stderr, redirect to stdout
+# Java - must actually run java -version (macOS has a stub that prompts to install)
+if java -version >/dev/null 2>&1; then
     JAVA_VERSION=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')
     echo "  [OK] java $JAVA_VERSION"
 else
-    echo "  [!!] java - NOT INSTALLED"
+    echo "  [!!] java - NOT INSTALLED (or not working)"
     if [[ "$OSTYPE" == "darwin"* ]]; then
         echo "       Install: brew install openjdk@17"
+        echo "       Then: sudo ln -sfn \$(brew --prefix)/opt/openjdk@17/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-17.jdk"
     else
         echo "       Install: sudo apt install openjdk-17-jdk"
     fi

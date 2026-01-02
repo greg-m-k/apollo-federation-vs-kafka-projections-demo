@@ -98,17 +98,20 @@ if (Test-Command "tilt") {
     $allGood = $false
 }
 
-# Java
-if (Test-Command "java") {
-    try {
-        $javaOutput = java -version 2>&1 | Select-Object -First 1
+# Java - actually test that java runs (not just that the command exists)
+$javaWorks = $false
+try {
+    $javaOutput = java -version 2>&1 | Select-Object -First 1
+    if ($LASTEXITCODE -eq 0 -or $javaOutput -match 'version') {
         $javaVersion = $javaOutput -replace '.*version "', '' -replace '".*', ''
         Write-Host "  [OK] java $javaVersion" -ForegroundColor Green
-    } catch {
-        Write-Host "  [OK] java (version check failed)" -ForegroundColor Green
+        $javaWorks = $true
     }
-} else {
-    Write-Host "  [!!] java - NOT INSTALLED" -ForegroundColor Red
+} catch {
+    # java command failed
+}
+if (-not $javaWorks) {
+    Write-Host "  [!!] java - NOT INSTALLED (or not working)" -ForegroundColor Red
     Write-Host "       Install: winget install Microsoft.OpenJDK.17" -ForegroundColor Yellow
     $allGood = $false
 }
