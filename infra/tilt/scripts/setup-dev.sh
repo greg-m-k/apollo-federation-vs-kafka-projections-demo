@@ -101,10 +101,10 @@ if java -version >/dev/null 2>&1; then
 else
     echo "  [!!] java - NOT INSTALLED (or not working)"
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        echo "       Install: brew install openjdk@17"
-        echo "       Then: sudo ln -sfn \$(brew --prefix)/opt/openjdk@17/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-17.jdk"
+        echo "       Install: brew install openjdk@21"
+        echo "       Then: sudo ln -sfn \$(brew --prefix)/opt/openjdk@21/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-21.jdk"
     else
-        echo "       Install: sudo apt install openjdk-17-jdk"
+        echo "       Install: sudo apt install openjdk-21-jdk"
     fi
     ALL_GOOD=false
 fi

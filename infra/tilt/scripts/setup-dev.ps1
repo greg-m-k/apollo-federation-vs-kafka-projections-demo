@@ -112,7 +112,7 @@ try {
 }
 if (-not $javaWorks) {
     Write-Host "  [!!] java - NOT INSTALLED (or not working)" -ForegroundColor Red
-    Write-Host "       Install: winget install Microsoft.OpenJDK.17" -ForegroundColor Yellow
+    Write-Host "       Install: winget install Microsoft.OpenJDK.21" -ForegroundColor Yellow
     $allGood = $false
 }
 
@@ -124,7 +124,7 @@ if (-not $allGood) {
     Write-Host "Quick install (Windows):" -ForegroundColor Cyan
     Write-Host "  winget install Kubernetes.kubectl"
     Write-Host "  winget install Tilt.Tilt"
-    Write-Host "  winget install Microsoft.OpenJDK.17"
+    Write-Host "  winget install Microsoft.OpenJDK.21"
     Write-Host ""
     exit 1
 }
