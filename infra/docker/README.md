@@ -30,9 +30,9 @@ dockerfile='infra/docker/Dockerfile.quarkus-jvm'
 
 ## Why Shared?
 
-All 9 Quarkus services use identical containerization:
+All 8 Quarkus services use identical containerization:
 - 3 Federation subgraphs (hr, employment, security)
-- 3 Kafka event services (hr-events, employment-events, security-events)
-- 3 Kafka query services (projection-consumer, query-service)
+- 3 Event services (hr-events, employment-events, security-events)
+- 2 Query services (projection-consumer, query-service)
 
 One Dockerfile = consistent builds, easier maintenance.

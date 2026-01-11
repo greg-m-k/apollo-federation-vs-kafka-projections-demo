@@ -30,8 +30,8 @@ k8s/
 ## Namespaces
 
 Two namespaces isolate the architectures:
-- `federation-demo` - GraphQL Federation services
-- `kafka-demo` - Event-Driven Projection services
+- `federation` - GraphQL Federation services
+- `kafka` - Event-Driven Projection services
 
 ## Port Mappings
 

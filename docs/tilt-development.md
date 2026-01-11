@@ -11,7 +11,7 @@ Install the following tools:
 | Docker Desktop | https://docs.docker.com/get-docker/ (enable Kubernetes in settings) |
 | kubectl | `winget install Kubernetes.kubectl` |
 | tilt | `winget install Tilt.Tilt` or download to `C:\Users\<user>\bin` |
-| Java 17+ | `winget install Microsoft.OpenJDK.17` |
+| Java 21+ | `winget install Microsoft.OpenJDK.21` |
 
 Ensure Docker Desktop Kubernetes is enabled:
 1. Open Docker Desktop → Settings → Kubernetes
@@ -27,8 +27,8 @@ Ensure Docker Desktop Kubernetes is enabled:
 kubectl config current-context
 # Should output: docker-desktop
 
-# Pre-build all Maven projects (optional, ~5 minutes)
-.\tilt\scripts\setup-dev.ps1
+# Or use the bootstrap script (installs prereqs + starts Tilt)
+.\bootstrap.ps1
 ```
 
 ### Starting Development
@@ -40,8 +40,8 @@ tilt up
 # Start only Federation stack
 tilt up -- --federation-only
 
-# Start only Kafka Projections stack
-tilt up -- --kafka-only
+# Start only Event-Driven Projections stack
+tilt up -- --event-only
 ```
 
 ### Stopping Development
@@ -61,7 +61,7 @@ tilt down
 | Tilt Dashboard | http://localhost:10350 | Tilt UI for logs/status |
 | Comparison Dashboard | http://localhost:3000 | Demo comparison UI |
 | Apollo Router | http://localhost:4000 | GraphQL Federation endpoint |
-| Projection Service | http://localhost:8090 | Event-Driven CQRS query API |
+| Query Service | http://localhost:8090 | Event-Driven query API |
 | HR Subgraph | http://localhost:8091 | Federation subgraph |
 | Employment Subgraph | http://localhost:8092 | Federation subgraph |
 | Security Subgraph | http://localhost:8093 | Federation subgraph |
@@ -103,7 +103,7 @@ tilt get
     ┌─────────────────────────────────────────────────────┐
     │                                                     │
     │  FEDERATION STACK              EVENT-DRIVEN STACK   │
-    │  (namespace: federation-demo)  (namespace: kafka-demo)│
+    │  (namespace: federation)       (namespace: kafka)     │
     │                                                     │
     │  ┌─────────────────┐          ┌─────────────────┐  │
     │  │  hr-subgraph    │          │ hr-events-svc   │  │
@@ -202,7 +202,7 @@ Ensure all subgraphs are healthy before router starts. Check Tilt UI for depende
 ### Dashboard Can't Reach Services
 
 The dashboard uses nginx proxies to reach services across namespaces:
-- Federation: `router.federation-demo.svc.cluster.local:4000`
+- Federation: `router.federation.svc.cluster.local:4000`
 - Event-Driven: `query-service:8080` (same namespace)
 
 ### Clean Restart
