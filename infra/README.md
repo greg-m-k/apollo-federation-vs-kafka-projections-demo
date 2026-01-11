@@ -22,19 +22,20 @@ infra/
 | `k8s/` | K8s deployments | `federation/*.yaml`, `kafka/*.yaml` |
 | `maven/` | Build tooling | `mvnw`, `mvnw.cmd` |
 | `router/` | GraphQL Federation | `supergraph.yaml`, `router.yaml` |
-| `scripts/` | Automation | `demo.sh`, `init-multiple-dbs.sh` |
-| `tilt/` | Local dev | `kind-cluster.yaml`, `setup-dev.sh` |
+| `scripts/` | Automation | `init-multiple-dbs.sh` |
+| `tilt/` | Local dev | `kind-cluster.yaml` |
 
 ## Getting Started
 
 ```bash
-# 1. Setup (creates cluster, pre-builds)
-make setup
+# From repo root - installs prereqs and starts Tilt
+./bootstrap.sh        # macOS
+.\bootstrap.ps1       # Windows
 
-# 2. Start everything
-make up
+# Or if prereqs already installed
+tilt up
 
-# 3. Open dashboard
+# Open dashboard
 open http://localhost:3000
 ```
 

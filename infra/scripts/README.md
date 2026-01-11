@@ -1,12 +1,12 @@
 # Scripts
 
-Utility and demo scripts.
+Utility scripts for the demo.
 
 ## Files
 
-### `demo.sh` / `demo.ps1`
+### `demo.ps1`
 
-Interactive demo script that walks through the comparison:
+Interactive demo script (Windows) that walks through the comparison:
 1. Queries both architectures
 2. Creates new data
 3. Shows propagation delay in Event-Driven
@@ -14,10 +14,8 @@ Interactive demo script that walks through the comparison:
 5. Demonstrates resilience differences
 
 **Usage:**
-```bash
-./infra/scripts/demo.sh          # Linux/Mac
-.\infra\scripts\demo.ps1         # Windows
-make demo                         # Via Makefile
+```powershell
+.\infra\scripts\demo.ps1         # Windows (after running tilt up)
 ```
 
 ### `init-multiple-dbs.sh`
@@ -43,14 +41,4 @@ Each subgraph/service needs its own database, but we use one PostgreSQL containe
 
 ## Adding New Scripts
 
-Place utility scripts here. Update the Makefile if they should be easily invocable:
-
-```makefile
-# Makefile
-my-script:
-ifeq ($(OS),Windows_NT)
-	@powershell -ExecutionPolicy Bypass -File infra/scripts/my-script.ps1
-else
-	@./infra/scripts/my-script.sh
-endif
-```
+Place utility scripts here. Scripts can be invoked directly or from the Tiltfile if needed.

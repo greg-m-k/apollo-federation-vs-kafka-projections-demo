@@ -30,23 +30,17 @@ kind create cluster --config infra/tilt/kind-cluster.yaml
 | PostgreSQL (Fed) | 30434 | 5434 |
 | PostgreSQL (Kafka) | 30433 | 5433 |
 
-### `scripts/setup-dev.sh` / `scripts/setup-dev.ps1`
+### Bootstrap Scripts (in repo root)
 
-One-command setup that:
-1. Checks prerequisites (Docker, kubectl, Tilt, Java, Maven)
-2. Creates Kind cluster if needed
-3. Pre-builds all Maven projects (parallel)
-4. Reports ready status
+Use the root-level bootstrap scripts for zero-to-running setup:
 
-**Usage:**
 ```bash
-./infra/tilt/scripts/setup-dev.sh              # Full setup
-./infra/tilt/scripts/setup-dev.sh --skip-build # Skip Maven build
-./infra/tilt/scripts/setup-dev.sh --check-only # Just check prereqs
+./bootstrap.sh        # macOS - installs prereqs via Homebrew
+.\bootstrap.ps1       # Windows - installs prereqs via winget
+```
 
-# Windows
-.\infra\tilt\scripts\setup-dev.ps1
-.\infra\tilt\scripts\setup-dev.ps1 -SkipBuild
+For Windows-only prerequisite checking without starting Tilt:
+```powershell
 .\infra\tilt\scripts\setup-dev.ps1 -CheckOnly
 ```
 
@@ -63,12 +57,11 @@ The root `Tiltfile` orchestrates everything:
 ## Starting Development
 
 ```bash
-# First time: full setup
-make setup
+# First time: full setup (from repo root)
+./bootstrap.sh        # macOS
+.\bootstrap.ps1       # Windows
 
-# Start Tilt
-make up
-# or
+# Or start Tilt directly (prereqs must be installed)
 tilt up
 
 # Open Tilt UI
@@ -101,7 +94,4 @@ kind create cluster --config infra/tilt/kind-cluster.yaml
 ```
 
 **Slow builds:**
-Pre-build Maven projects:
-```bash
-./infra/tilt/scripts/setup-dev.sh
-```
+The bootstrap scripts pre-build Maven projects. If running `tilt up` directly, the first build takes longer.

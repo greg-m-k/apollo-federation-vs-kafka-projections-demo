@@ -15,7 +15,7 @@ try {
     $null = Invoke-RestMethod -Uri "$FEDERATION_URL/health" -TimeoutSec 5
 } catch {
     Write-Host "ERROR: Federation Router not responding at $FEDERATION_URL" -ForegroundColor Red
-    Write-Host "Run 'make up' or 'tilt up' first to start services."
+    Write-Host "Run 'tilt up' first to start services."
     exit 1
 }
 
@@ -23,7 +23,7 @@ try {
     $null = Invoke-RestMethod -Uri "$KAFKA_URL/health" -TimeoutSec 5
 } catch {
     Write-Host "ERROR: Query Service not responding at $KAFKA_URL" -ForegroundColor Red
-    Write-Host "Run 'make up' or 'tilt up' first to start services."
+    Write-Host "Run 'tilt up' first to start services."
     exit 1
 }
 Write-Host "All services are running!" -ForegroundColor Green

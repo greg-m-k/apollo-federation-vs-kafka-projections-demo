@@ -19,98 +19,92 @@ This is a **learning tool**, not a production benchmark. The implementations are
 
 ## Root Configuration Files
 
-The project root contains three orchestration files for different use cases:
+The project root contains these orchestration files:
 
 | File | Purpose | When to Use |
 |------|---------|-------------|
-| **`Makefile`** | Cross-platform command shortcuts | Primary interface for most operations (`make up`, `make down`, etc.) |
+| **`bootstrap.sh`** | macOS setup script | Installs prerequisites via Homebrew, then starts Tilt |
+| **`bootstrap.ps1`** | Windows setup script | Installs prerequisites via winget, then starts Tilt |
 | **`Tiltfile`** | Kubernetes development orchestration | Used by Tilt for live-reload local development on K8s |
 | **`docker-compose.yml`** | Standalone Docker orchestration | When you want to run without Kubernetes |
 
 ---
 
-## Prerequisites
+## Quick Start (Recommended)
 
-- [Docker Desktop](https://docs.docker.com/get-docker/) with Kubernetes enabled
-- [kubectl](https://kubernetes.io/docs/tasks/tools/)
-- [Tilt](https://docs.tilt.dev/install.html)
-- Java 17+
-- `make` (included on Mac/Linux; Windows users: use Git Bash, WSL, or [install make](https://gnuwin32.sourceforge.net/packages/make.htm))
+The bootstrap scripts install all prerequisites automatically and launch Tilt:
 
-## Quick Start
-
+**macOS:**
 ```bash
-# 1. Check prerequisites and pre-build (first time only)
-make setup
-
-# 2. Start all services
-make up
+./bootstrap.sh
 ```
 
-Or just check prerequisites without building:
-```bash
-make prereqs
+**Windows (PowerShell):**
+```powershell
+.\bootstrap.ps1
 ```
 
-### Start Specific Stacks
+Both scripts will:
+1. Install Docker Desktop, kubectl, Tilt, and Java 21 (skips if already installed)
+2. Enable Kubernetes in Docker Desktop
+3. Pre-build all Maven services
+4. Launch Tilt
+
+---
+
+## Manual Setup (If You Prefer)
+
+If you want to install prerequisites yourself and just run `tilt up`:
+
+### Prerequisites
+
+| Tool | Purpose | Install |
+|------|---------|---------|
+| Docker Desktop | Containers + K8s | [docker.com](https://docs.docker.com/get-docker/) — enable Kubernetes in Settings |
+| kubectl | K8s CLI | `brew install kubectl` or `winget install Kubernetes.kubectl` |
+| Tilt | Dev orchestration | `brew tap tilt-dev/tap && brew install tilt` or `winget install Tilt.Tilt` |
+| Java 21+ | Build services | `brew install openjdk@21` or `winget install Microsoft.OpenJDK.21` |
+
+### Verify Prerequisites
 
 ```bash
-make federation-only   # Just Federation architecture
-make event-only        # Just Event-Driven Projections architecture
+docker info          # Docker running
+kubectl get nodes    # Kubernetes ready (should show "docker-desktop")
+tilt version         # Tilt installed
+java -version        # Java 21+
 ```
 
-### Stop
+### Run Tilt Directly
+
+Once prerequisites are installed:
 
 ```bash
-make down              # Stop services
-make clean             # Stop and delete namespaces
+tilt up              # Builds services on first run (slower initial start)
 ```
 
-### Alternative: Docker Compose (No Kubernetes)
+---
+
+## Start Specific Stacks
+
+```bash
+tilt up -- --federation-only   # Just Federation architecture
+tilt up -- --event-only        # Just Event-Driven Projections
+```
+
+## Stop
+
+```bash
+tilt down                      # Stop services (Ctrl+C also works)
+kubectl delete namespace federation kafka  # Full cleanup
+```
+
+## Alternative: Docker Compose (No Kubernetes)
 
 If you don't want to use Tilt/Kubernetes:
 
 ```bash
-# Build and start all services
-docker compose up --build
-
-# Stop
-docker compose down
-```
-
-### Manual Setup (No Make Required)
-
-If you can't or don't want to use `make`:
-
-**Windows (PowerShell):**
-```powershell
-# 1. Check prerequisites and pre-build
-.\infra\tilt\scripts\setup-dev.ps1
-
-# 2. Start with Tilt
-tilt up
-
-# Or start with Docker Compose
-docker compose up --build
-```
-
-**Mac/Linux (Bash):**
-```bash
-# 1. Check prerequisites and pre-build
-./infra/tilt/scripts/setup-dev.sh
-
-# 2. Start with Tilt
-tilt up
-
-# Or start with Docker Compose
-docker compose up --build
-```
-
-**Skip pre-build entirely** (Tilt/Docker will build on first run, just slower):
-```bash
-tilt up
-# or
-docker compose up --build
+docker compose up --build      # Build and start
+docker compose down            # Stop
 ```
 
 ## Access Points
@@ -119,7 +113,7 @@ docker compose up --build
 |---------|-----|
 | Dashboard | http://localhost:3000 |
 | Federation Router | http://localhost:4000 |
-| Projection Service | http://localhost:8090 |
+| Query Service (Event-Driven) | http://localhost:8090 |
 | Tilt UI | http://localhost:10350 |
 
 ## Using the Demo
@@ -140,18 +134,16 @@ Once running, open the **Dashboard** at http://localhost:3000
 
 3. **Test Failure Scenarios**
    ```bash
-   make kill-security     # Stop Security service
-   make restore-security  # Bring it back
+   # Stop Security service
+   kubectl scale deployment security-subgraph -n federation --replicas=0
+
+   # Bring it back
+   kubectl scale deployment security-subgraph -n federation --replicas=1
    ```
    - Federation queries fail when services are down
    - Event-Driven continues working with stale data
 
-4. **Run Automated Demo**
-   ```bash
-   make demo
-   ```
-
-5. **Explore GraphQL**
+4. **Explore GraphQL**
    - Open Apollo Sandbox at http://localhost:4000
    - Run queries across federated subgraphs
 
@@ -275,12 +267,13 @@ READ PATH (sync):
 │   ├── k8s/                     # Kubernetes manifests — [README](infra/k8s/README.md)
 │   ├── maven/                   # Shared Maven wrapper
 │   ├── router/                  # Apollo Router config — [README](infra/router/README.md)
-│   ├── scripts/                 # Demo scripts — [README](infra/scripts/README.md)
+│   ├── scripts/                 # Utility scripts — [README](infra/scripts/README.md)
 │   └── tilt/                    # Tilt setup scripts — [README](infra/tilt/README.md)
 │
 ├── tests/                       # Playwright E2E tests
 │
-├── Makefile                     # Command shortcuts
+├── bootstrap.sh                 # macOS setup script (brew + tilt up)
+├── bootstrap.ps1                # Windows setup script (winget + tilt up)
 ├── Tiltfile                     # Tilt/K8s orchestration
 └── docker-compose.yml           # Docker orchestration
 ```
@@ -293,30 +286,7 @@ READ PATH (sync):
 - **Database**: PostgreSQL 15
 - **Local Dev**: Tilt + Docker Desktop Kubernetes
 
-## All Make Commands
-
-```bash
-make help             # Show all commands
-make setup            # Check prerequisites + pre-build
-make prereqs          # Just check prerequisites
-make up               # Start all services
-make down             # Stop services
-make clean            # Full cleanup
-make federation-only  # Start Federation only
-make event-only       # Start Event-Driven Projections only
-make demo             # Run demo script
-make test             # Run Playwright tests
-make kill-security    # Stop Security service
-make restore-security # Restore Security service
-make logs-kafka       # Tail Kafka logs
-make lag              # Show consumer lag
-```
-
 ## Troubleshooting
-
-**`make` command not found (Windows)**
-- Use Git Bash instead of PowerShell/CMD, or
-- Run PowerShell scripts directly: `.\infra\tilt\scripts\setup-dev.ps1`
 
 **Docker build fails**
 - Ensure Docker Desktop is running

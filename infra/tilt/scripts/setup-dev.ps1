@@ -199,8 +199,6 @@ Write-Host "=== Setup Complete! ===" -ForegroundColor Green
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Cyan
 Write-Host "  tilt up          # Start all services"
-Write-Host "  make up          # Same thing"
-Write-Host "  make help        # See all commands"
 Write-Host ""
 Write-Host "Access points:" -ForegroundColor Cyan
 Write-Host "  Tilt UI:   http://localhost:10350"
