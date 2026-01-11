@@ -23,7 +23,7 @@ The project root contains these orchestration files:
 
 | File | Purpose | When to Use |
 |------|---------|-------------|
-| **`bootstrap.sh`** | macOS setup script | Installs prerequisites via Homebrew, then starts Tilt |
+| **`bootstrap.sh`** | macOS/Linux setup script | Installs prerequisites (brew on macOS), then starts Tilt |
 | **`bootstrap.ps1`** | Windows setup script | Installs prerequisites via winget, then starts Tilt |
 | **`Tiltfile`** | Kubernetes development orchestration | Used by Tilt for live-reload local development on K8s |
 | **`docker-compose.yml`** | Standalone Docker orchestration | When you want to run without Kubernetes |
@@ -34,7 +34,7 @@ The project root contains these orchestration files:
 
 The bootstrap scripts install all prerequisites automatically and launch Tilt:
 
-**macOS:**
+**macOS/Linux:**
 ```bash
 ./bootstrap.sh
 ```
@@ -44,7 +44,11 @@ The bootstrap scripts install all prerequisites automatically and launch Tilt:
 .\bootstrap.ps1
 ```
 
-Both scripts will:
+**macOS:** Installs via Homebrew (auto-installs brew if missing)
+**Linux:** Checks prerequisites and provides install instructions if missing
+**Windows:** Installs via winget
+
+All scripts will:
 1. Install Docker Desktop, kubectl, Tilt, and Java 21 (skips if already installed)
 2. Enable Kubernetes in Docker Desktop
 3. Pre-build all Maven services
@@ -272,7 +276,7 @@ READ PATH (sync):
 │
 ├── tests/                       # Playwright E2E tests
 │
-├── bootstrap.sh                 # macOS setup script (brew + tilt up)
+├── bootstrap.sh                 # macOS/Linux setup script
 ├── bootstrap.ps1                # Windows setup script (winget + tilt up)
 ├── Tiltfile                     # Tilt/K8s orchestration
 └── docker-compose.yml           # Docker orchestration

@@ -2,7 +2,7 @@
 set -e
 
 # Apollo Federation vs Event-Driven Projections Demo
-# Zero-to-Tilt bootstrap script for macOS
+# Zero-to-Tilt bootstrap script for macOS and Linux
 # Usage: ./bootstrap.sh
 
 #------------------------------------------------------------------------------
@@ -20,93 +20,18 @@ warn() { echo -e "${YELLOW}⚠${NC} $1"; }
 fail() { echo -e "${RED}✗${NC} $1"; exit 1; }
 
 #------------------------------------------------------------------------------
-# 1. Platform check - macOS only
+# 1. Platform detection
 #------------------------------------------------------------------------------
-if [[ "$(uname)" != "Darwin" ]]; then
-    fail "This script is for macOS only. For Windows, use: .\\bootstrap.ps1"
+OS="$(uname)"
+if [[ "$OS" != "Darwin" && "$OS" != "Linux" ]]; then
+    fail "This script is for macOS/Linux only. For Windows, use: .\\bootstrap.ps1"
 fi
 
-echo ""
-echo "======================================"
-echo "  Apollo Demo Bootstrap (macOS)"
-echo "======================================"
-echo ""
-echo "This script will install (if missing):"
-echo "  • Homebrew       - macOS package manager"
-echo "  • Docker Desktop - containers + Kubernetes"
-echo "  • kubectl        - Kubernetes CLI"
-echo "  • Tilt           - local dev orchestration"
-echo "  • OpenJDK 21     - Java runtime for builds"
-echo ""
-echo "Then it will:"
-echo "  • Enable Kubernetes in Docker Desktop"
-echo "  • Pre-build 8 Maven services"
-echo "  • Launch Tilt"
-echo ""
-echo "NOTE: Docker Desktop will ask for your admin password once"
-echo "      to install its privileged helper (first time only)."
-echo ""
-read -p "Press Enter to continue (or Ctrl+C to cancel)... "
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 #------------------------------------------------------------------------------
-# 2. Install Homebrew if missing
+# 2. Java version check helper
 #------------------------------------------------------------------------------
-if ! command -v brew &>/dev/null; then
-    info "Installing Homebrew (non-interactive)..."
-    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-    # Add brew to PATH for Apple Silicon Macs
-    if [[ -f "/opt/homebrew/bin/brew" ]]; then
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-    fi
-    ok "Homebrew installed"
-else
-    ok "Homebrew already installed"
-fi
-
-#------------------------------------------------------------------------------
-# 3. Install prerequisites via brew
-#------------------------------------------------------------------------------
-# Prevent brew from auto-updating during installs (slow + interactive)
-export HOMEBREW_NO_AUTO_UPDATE=1
-export HOMEBREW_NO_INSTALL_CLEANUP=1
-
-install_brew_package() {
-    local pkg=$1
-    local type=${2:-formula}  # formula or cask
-    local cmd=${3:-$pkg}      # command to check (defaults to package name)
-
-    # First check if command already exists (regardless of how it was installed)
-    if command -v "$cmd" &>/dev/null; then
-        ok "$cmd already installed"
-        return 0
-    fi
-
-    # Not found, install via brew
-    if [[ "$type" == "cask" ]]; then
-        info "Installing $pkg (may require sudo for cask)..."
-        brew install --cask "$pkg"
-    else
-        info "Installing $pkg..."
-        brew install "$pkg"
-    fi
-    ok "$pkg installed"
-}
-
-# Docker Desktop
-install_brew_package "docker" "cask"
-
-# kubectl
-install_brew_package "kubectl"
-
-# Tilt (needs tap first)
-if ! brew tap | grep -q "tilt-dev/tap"; then
-    info "Adding tilt-dev tap..."
-    brew tap tilt-dev/tap
-fi
-install_brew_package "tilt"
-
-# Java 21 - need version 21+, not just any Java
 java_version_ok() {
     if ! command -v java &>/dev/null; then
         return 1
@@ -115,93 +40,145 @@ java_version_ok() {
     [[ "$version" -ge 21 ]]
 }
 
-if java_version_ok; then
-    ok "Java 21+ already installed"
-else
-    info "Installing OpenJDK 21..."
-    brew install openjdk@21
-    ok "OpenJDK 21 installed"
-fi
-
 #------------------------------------------------------------------------------
-# 4. Configure Java PATH
+# 3. Platform-specific setup
 #------------------------------------------------------------------------------
-# If brew's openjdk@21 exists, use it; otherwise use system Java
-JAVA_HOME_BREW="$(brew --prefix openjdk@21 2>/dev/null)"
-if [[ -d "$JAVA_HOME_BREW" ]]; then
-    export JAVA_HOME="$JAVA_HOME_BREW"
-    export PATH="$JAVA_HOME/bin:$PATH"
-    ok "Java 21 configured (JAVA_HOME=$JAVA_HOME)"
-elif java_version_ok; then
-    ok "Using existing Java 21+ installation"
-else
-    fail "Java 21+ required but not found"
-fi
-
-# Verify Java works
-if ! java -version &>/dev/null; then
-    fail "Java not working. Please check your installation."
-fi
-
-#------------------------------------------------------------------------------
-# 5. Start Docker Desktop if not running
-#------------------------------------------------------------------------------
-if ! docker info &>/dev/null; then
-    info "Starting Docker Desktop..."
-    open -a Docker
-
-    echo -n "   Waiting for Docker to start"
-    timeout=120
-    while ! docker info &>/dev/null; do
-        echo -n "."
-        sleep 2
-        timeout=$((timeout - 2))
-        if [[ $timeout -le 0 ]]; then
-            echo ""
-            fail "Docker failed to start within 120 seconds"
-        fi
-    done
+if [[ "$OS" == "Darwin" ]]; then
+    #==========================================================================
+    # macOS Setup
+    #==========================================================================
     echo ""
-    ok "Docker Desktop is running"
-else
-    ok "Docker Desktop already running"
-fi
+    echo "======================================"
+    echo "  Apollo Demo Bootstrap (macOS)"
+    echo "======================================"
+    echo ""
+    echo "This script will install (if missing):"
+    echo "  • Homebrew       - macOS package manager"
+    echo "  • Docker Desktop - containers + Kubernetes"
+    echo "  • kubectl        - Kubernetes CLI"
+    echo "  • Tilt           - local dev orchestration"
+    echo "  • OpenJDK 21     - Java runtime for builds"
+    echo ""
+    echo "Then it will:"
+    echo "  • Enable Kubernetes in Docker Desktop"
+    echo "  • Pre-build 8 Maven services"
+    echo "  • Launch Tilt"
+    echo ""
+    echo "NOTE: Docker Desktop will ask for your admin password once"
+    echo "      to install its privileged helper (first time only)."
+    echo ""
+    read -p "Press Enter to continue (or Ctrl+C to cancel)... "
 
-#------------------------------------------------------------------------------
-# 6. Enable Kubernetes in Docker Desktop (automatic)
-#------------------------------------------------------------------------------
-DOCKER_SETTINGS="$HOME/Library/Group Containers/group.com.docker/settings.json"
+    # Install Homebrew if missing
+    if ! command -v brew &>/dev/null; then
+        info "Installing Homebrew (non-interactive)..."
+        NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        # Add brew to PATH for Apple Silicon Macs
+        if [[ -f "/opt/homebrew/bin/brew" ]]; then
+            eval "$(/opt/homebrew/bin/brew shellenv)"
+        fi
+        ok "Homebrew installed"
+    else
+        ok "Homebrew already installed"
+    fi
 
-enable_kubernetes() {
-    # Wait for settings.json to exist (Docker creates it on first run)
+    # Prevent brew from auto-updating during installs
+    export HOMEBREW_NO_AUTO_UPDATE=1
+    export HOMEBREW_NO_INSTALL_CLEANUP=1
+
+    install_brew_package() {
+        local pkg=$1
+        local type=${2:-formula}
+        local cmd=${3:-$pkg}
+        if command -v "$cmd" &>/dev/null; then
+            ok "$cmd already installed"
+            return 0
+        fi
+        if [[ "$type" == "cask" ]]; then
+            info "Installing $pkg (may require sudo for cask)..."
+            brew install --cask "$pkg"
+        else
+            info "Installing $pkg..."
+            brew install "$pkg"
+        fi
+        ok "$pkg installed"
+    }
+
+    # Install prerequisites
+    install_brew_package "docker" "cask"
+    install_brew_package "kubectl"
+
+    if ! brew tap | grep -q "tilt-dev/tap"; then
+        info "Adding tilt-dev tap..."
+        brew tap tilt-dev/tap
+    fi
+    install_brew_package "tilt"
+
+    if java_version_ok; then
+        ok "Java 21+ already installed"
+    else
+        info "Installing OpenJDK 21..."
+        brew install openjdk@21
+        ok "OpenJDK 21 installed"
+    fi
+
+    # Configure Java PATH
+    JAVA_HOME_BREW="$(brew --prefix openjdk@21 2>/dev/null)"
+    if [[ -d "$JAVA_HOME_BREW" ]]; then
+        export JAVA_HOME="$JAVA_HOME_BREW"
+        export PATH="$JAVA_HOME/bin:$PATH"
+        ok "Java 21 configured (JAVA_HOME=$JAVA_HOME)"
+    elif java_version_ok; then
+        ok "Using existing Java 21+ installation"
+    else
+        fail "Java 21+ required but not found"
+    fi
+
+    # Start Docker Desktop if not running
+    if ! docker info &>/dev/null; then
+        info "Starting Docker Desktop..."
+        open -a Docker
+        echo -n "   Waiting for Docker to start"
+        timeout=120
+        while ! docker info &>/dev/null; do
+            echo -n "."
+            sleep 2
+            timeout=$((timeout - 2))
+            if [[ $timeout -le 0 ]]; then
+                echo ""
+                fail "Docker failed to start within 120 seconds"
+            fi
+        done
+        echo ""
+        ok "Docker Desktop is running"
+    else
+        ok "Docker Desktop already running"
+    fi
+
+    # Enable Kubernetes in Docker Desktop
+    DOCKER_SETTINGS="$HOME/Library/Group Containers/group.com.docker/settings.json"
+
     if [[ ! -f "$DOCKER_SETTINGS" ]]; then
         info "Waiting for Docker Desktop to initialize settings..."
-        local wait_count=0
+        wait_count=0
         while [[ ! -f "$DOCKER_SETTINGS" ]] && [[ $wait_count -lt 60 ]]; do
             sleep 2
             wait_count=$((wait_count + 2))
         done
         if [[ ! -f "$DOCKER_SETTINGS" ]]; then
-            fail "Docker Desktop settings not found after 60 seconds. Please open Docker Desktop manually first."
+            fail "Docker Desktop settings not found after 60 seconds."
         fi
     fi
 
-    # Check if Kubernetes is already enabled
     if grep -q '"kubernetesEnabled"[[:space:]]*:[[:space:]]*true' "$DOCKER_SETTINGS"; then
         ok "Kubernetes already enabled in Docker Desktop"
-        return 0
-    fi
+    else
+        info "Enabling Kubernetes in Docker Desktop..."
+        info "Stopping Docker Desktop to modify settings..."
+        osascript -e 'quit app "Docker"' 2>/dev/null || true
+        sleep 3
 
-    info "Enabling Kubernetes in Docker Desktop..."
-
-    # Stop Docker Desktop BEFORE modifying settings (avoid race condition)
-    info "Stopping Docker Desktop to modify settings..."
-    osascript -e 'quit app "Docker"' 2>/dev/null || true
-    sleep 3
-
-    # Update settings.json to enable Kubernetes
-    # Use Python for reliable JSON manipulation (available on macOS)
-    python3 -c "
+        python3 -c "
 import json
 with open('$DOCKER_SETTINGS', 'r') as f:
     settings = json.load(f)
@@ -209,51 +186,164 @@ settings['kubernetesEnabled'] = True
 with open('$DOCKER_SETTINGS', 'w') as f:
     json.dump(settings, f, indent=2)
 "
+        info "Starting Docker Desktop with Kubernetes enabled..."
+        open -a Docker
 
-    # Start Docker Desktop with new settings
-    info "Starting Docker Desktop with Kubernetes enabled..."
-    open -a Docker
+        echo -n "   Waiting for Docker to restart"
+        timeout=120
+        while ! docker info &>/dev/null; do
+            echo -n "."
+            sleep 2
+            timeout=$((timeout - 2))
+            if [[ $timeout -le 0 ]]; then
+                echo ""
+                fail "Docker failed to restart within 120 seconds"
+            fi
+        done
+        echo ""
+        ok "Docker Desktop restarted with Kubernetes enabled"
+    fi
 
-    # Wait for Docker to restart
-    echo -n "   Waiting for Docker to restart"
-    local timeout=120
-    while ! docker info &>/dev/null; do
-        echo -n "."
-        sleep 2
-        timeout=$((timeout - 2))
-        if [[ $timeout -le 0 ]]; then
-            echo ""
-            fail "Docker failed to restart within 120 seconds"
-        fi
-    done
+    K8S_CONTEXT="docker-desktop"
+
+else
+    #==========================================================================
+    # Linux Setup
+    #==========================================================================
     echo ""
-    ok "Docker Desktop restarted with Kubernetes enabled"
-}
+    echo "======================================"
+    echo "  Apollo Demo Bootstrap (Linux)"
+    echo "======================================"
+    echo ""
+    echo "Checking prerequisites..."
+    echo ""
 
-# Enable Kubernetes if not already enabled
-enable_kubernetes
+    missing=()
 
-# Wait for docker-desktop context to appear
-if ! kubectl config get-contexts docker-desktop &>/dev/null; then
-    echo -n "   Waiting for Kubernetes to initialize"
+    # Check Docker
+    if command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
+        ok "Docker is installed and running"
+    elif command -v docker &>/dev/null; then
+        warn "Docker is installed but not running"
+        echo "   Start Docker with: sudo systemctl start docker"
+        echo "   Or for Docker Desktop: systemctl --user start docker-desktop"
+        missing+=("docker (not running)")
+    else
+        missing+=("docker")
+    fi
+
+    # Check kubectl
+    if command -v kubectl &>/dev/null; then
+        ok "kubectl is installed"
+    else
+        missing+=("kubectl")
+    fi
+
+    # Check Tilt
+    if command -v tilt &>/dev/null; then
+        ok "Tilt is installed"
+    else
+        missing+=("tilt")
+    fi
+
+    # Check Java 21+
+    if java_version_ok; then
+        ok "Java 21+ is installed"
+    else
+        missing+=("java 21+")
+    fi
+
+    # If anything missing, print install instructions and exit
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo ""
+        warn "Missing prerequisites: ${missing[*]}"
+        echo ""
+        echo "Install instructions:"
+        echo ""
+        echo "  Docker (pick one):"
+        echo "    # Docker Engine"
+        echo "    curl -fsSL https://get.docker.com | sudo sh"
+        echo "    sudo usermod -aG docker \$USER && newgrp docker"
+        echo ""
+        echo "    # Or Docker Desktop (includes Kubernetes)"
+        echo "    https://docs.docker.com/desktop/install/linux-install/"
+        echo ""
+        echo "  kubectl:"
+        echo "    curl -LO \"https://dl.k8s.io/release/\$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\""
+        echo "    chmod +x kubectl && sudo mv kubectl /usr/local/bin/"
+        echo ""
+        echo "  Tilt:"
+        echo "    curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash"
+        echo ""
+        echo "  Java 21+:"
+        echo "    # Ubuntu/Debian"
+        echo "    sudo apt install openjdk-21-jdk"
+        echo "    # Fedora"
+        echo "    sudo dnf install java-21-openjdk-devel"
+        echo "    # Arch"
+        echo "    sudo pacman -S jdk21-openjdk"
+        echo ""
+        echo "After installing, run this script again."
+        exit 1
+    fi
+
+    echo ""
+    read -p "Press Enter to continue (or Ctrl+C to cancel)... "
+
+    # Check for Kubernetes - Docker Desktop or other
+    DOCKER_SETTINGS="$HOME/.docker/desktop/settings.json"
+
+    if [[ -f "$DOCKER_SETTINGS" ]]; then
+        # Docker Desktop on Linux
+        if grep -q '"kubernetes"[[:space:]]*:[[:space:]]*{[^}]*"enabled"[[:space:]]*:[[:space:]]*true' "$DOCKER_SETTINGS" 2>/dev/null || \
+           grep -q '"kubernetesEnabled"[[:space:]]*:[[:space:]]*true' "$DOCKER_SETTINGS" 2>/dev/null; then
+            ok "Kubernetes enabled in Docker Desktop"
+        else
+            warn "Kubernetes not enabled in Docker Desktop"
+            echo "   Enable it: Docker Desktop > Settings > Kubernetes > Enable"
+            echo "   Then run this script again."
+            exit 1
+        fi
+        K8S_CONTEXT="docker-desktop"
+    else
+        # Check for any available K8s context
+        if kubectl config current-context &>/dev/null; then
+            K8S_CONTEXT=$(kubectl config current-context)
+            ok "Using Kubernetes context: $K8S_CONTEXT"
+        else
+            warn "No Kubernetes context found"
+            echo ""
+            echo "Options:"
+            echo "  1. Install Docker Desktop and enable Kubernetes"
+            echo "  2. Install minikube: https://minikube.sigs.k8s.io/docs/start/"
+            echo "  3. Install kind: https://kind.sigs.k8s.io/docs/user/quick-start/"
+            echo ""
+            exit 1
+        fi
+    fi
+fi
+
+#------------------------------------------------------------------------------
+# 4. Verify Kubernetes is ready (common for both platforms)
+#------------------------------------------------------------------------------
+if ! kubectl config get-contexts "$K8S_CONTEXT" &>/dev/null 2>&1; then
+    echo -n "   Waiting for Kubernetes context"
     timeout=180
-    while ! kubectl config get-contexts docker-desktop &>/dev/null; do
+    while ! kubectl config get-contexts "$K8S_CONTEXT" &>/dev/null 2>&1; do
         echo -n "."
         sleep 3
         timeout=$((timeout - 3))
         if [[ $timeout -le 0 ]]; then
             echo ""
-            fail "Kubernetes context not available after 180 seconds. Check Docker Desktop settings."
+            fail "Kubernetes context '$K8S_CONTEXT' not available after 180 seconds"
         fi
     done
     echo ""
 fi
 ok "Kubernetes context available"
 
-# Switch to docker-desktop context
-kubectl config use-context docker-desktop &>/dev/null
+kubectl config use-context "$K8S_CONTEXT" &>/dev/null
 
-# Wait for Kubernetes nodes to be ready
 if ! kubectl wait --for=condition=Ready nodes --all --timeout=5s &>/dev/null; then
     echo -n "   Waiting for nodes"
     timeout=180
@@ -271,12 +361,9 @@ fi
 ok "Kubernetes is ready"
 
 #------------------------------------------------------------------------------
-# 7. Pre-build Maven services (parallel)
+# 5. Pre-build Maven services (parallel)
 #------------------------------------------------------------------------------
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAVEN_DIR="$SCRIPT_DIR/infra/maven"
-
-# Ensure mvnw is executable
 chmod +x "$MAVEN_DIR/mvnw" 2>/dev/null || true
 
 SERVICES=(
@@ -294,22 +381,18 @@ echo ""
 info "Pre-building ${#SERVICES[@]} Maven services (parallel)..."
 echo ""
 
-# Build all services in parallel
-# Must run from infra/maven so mvnw can find .mvn/wrapper
 pids=()
 for svc in "${SERVICES[@]}"; do
     svc_name=$(basename "$svc")
     pom_path="../../$svc/pom.xml"
     (
         cd "$MAVEN_DIR"
-        # Use pipefail to preserve mvnw exit code through the pipe
         set -o pipefail
         ./mvnw -f "$pom_path" package -DskipTests -q 2>&1 | sed "s/^/   [$svc_name] /"
     ) &
     pids+=($!)
 done
 
-# Wait for all builds to complete
 failed=0
 for i in "${!pids[@]}"; do
     if ! wait "${pids[$i]}"; then
@@ -325,7 +408,7 @@ else
 fi
 
 #------------------------------------------------------------------------------
-# 8. Launch Tilt
+# 6. Launch Tilt
 #------------------------------------------------------------------------------
 echo ""
 echo "======================================"
