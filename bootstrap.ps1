@@ -209,109 +209,126 @@ if ($dockerRunning) {
 #------------------------------------------------------------------------------
 # 4. Enable Kubernetes in Docker Desktop
 #------------------------------------------------------------------------------
-$dockerSettings = "$env:APPDATA\Docker\settings.json"
 
-# Wait for settings file to exist
-if (-not (Test-Path $dockerSettings)) {
-    Write-Info "Waiting for Docker Desktop to initialize settings..."
-    $waitCount = 0
-    while (-not (Test-Path $dockerSettings) -and $waitCount -lt 60) {
-        Start-Sleep -Seconds 2
-        $waitCount += 2
-    }
-    if (-not (Test-Path $dockerSettings)) {
-        Write-Fail "Docker settings not found after 60 seconds"
-    }
-}
-
-# Check if Kubernetes is enabled
-$settings = Get-Content $dockerSettings -Raw | ConvertFrom-Json
-if ($settings.kubernetesEnabled -eq $true) {
-    Write-Ok "Kubernetes already enabled in Docker Desktop"
-} else {
-    Write-Info "Enabling Kubernetes in Docker Desktop..."
-
-    # Update settings
-    $settings.kubernetesEnabled = $true
-    $settings | ConvertTo-Json -Depth 10 | Set-Content $dockerSettings
-
-    # Restart Docker Desktop
-    Write-Info "Restarting Docker Desktop to apply Kubernetes setting..."
-    # Stop all Docker processes
-    Get-Process | Where-Object { $_.ProcessName -like "*docker*" } | Stop-Process -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 3
-    # Start Docker Desktop
-    $dockerExe = "$env:ProgramFiles\Docker\Docker\Docker Desktop.exe"
-    if (Test-Path $dockerExe) {
-        Start-Process $dockerExe -ErrorAction SilentlyContinue
-    } else {
-        Start-Process "shell:AppsFolder\Docker.DockerDesktop" -ErrorAction SilentlyContinue
-    }
-
-    Write-Host "   Waiting for Docker to restart" -NoNewline
-    $timeout = 120
-    while ($timeout -gt 0) {
-        Start-Sleep -Seconds 2
-        Write-Host "." -NoNewline
-        $timeout -= 2
-        try {
-            $null = docker info 2>&1
-            if ($LASTEXITCODE -eq 0) { break }
-        } catch {}
-    }
-    Write-Host ""
-
-    if ($timeout -le 0) {
-        Write-Fail "Docker failed to restart within 120 seconds"
-    }
-    Write-Ok "Docker Desktop restarted with Kubernetes enabled"
-}
-
-#------------------------------------------------------------------------------
-# 5. Wait for Kubernetes to be ready
-#------------------------------------------------------------------------------
-# Wait for docker-desktop context
+# First check if Kubernetes is already working
+$k8sWorking = $false
 $contextExists = kubectl config get-contexts docker-desktop 2>$null
-if (-not $contextExists) {
-    Write-Host "   Waiting for Kubernetes to initialize" -NoNewline
-    $timeout = 180
-    while ($timeout -gt 0) {
+if ($contextExists) {
+    kubectl config use-context docker-desktop 2>$null | Out-Null
+    $nodeCheck = kubectl get nodes 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        $k8sWorking = $true
+        Write-Ok "Kubernetes already enabled and working"
+    }
+}
+
+if (-not $k8sWorking) {
+    $dockerSettings = "$env:APPDATA\Docker\settings.json"
+
+    # Wait for settings file to exist
+    if (-not (Test-Path $dockerSettings)) {
+        Write-Info "Waiting for Docker Desktop to initialize settings..."
+        $waitCount = 0
+        while (-not (Test-Path $dockerSettings) -and $waitCount -lt 60) {
+            Start-Sleep -Seconds 2
+            $waitCount += 2
+        }
+        if (-not (Test-Path $dockerSettings)) {
+            Write-Warn "Docker settings not found at expected location"
+            Write-Warn "Please enable Kubernetes manually: Docker Desktop > Settings > Kubernetes > Enable"
+            Write-Fail "Cannot auto-enable Kubernetes"
+        }
+    }
+
+    # Check if Kubernetes is enabled
+    $settings = Get-Content $dockerSettings -Raw | ConvertFrom-Json
+    if ($settings.kubernetesEnabled -eq $true) {
+        Write-Ok "Kubernetes already enabled in Docker Desktop"
+    } else {
+        Write-Info "Enabling Kubernetes in Docker Desktop..."
+
+        # Update settings
+        $settings.kubernetesEnabled = $true
+        $settings | ConvertTo-Json -Depth 10 | Set-Content $dockerSettings
+
+        # Restart Docker Desktop
+        Write-Info "Restarting Docker Desktop to apply Kubernetes setting..."
+        # Stop all Docker processes
+        Get-Process | Where-Object { $_.ProcessName -like "*docker*" } | Stop-Process -Force -ErrorAction SilentlyContinue
         Start-Sleep -Seconds 3
-        Write-Host "." -NoNewline
-        $timeout -= 3
-        $contextExists = kubectl config get-contexts docker-desktop 2>$null
-        if ($contextExists) { break }
-    }
-    Write-Host ""
+        # Start Docker Desktop
+        $dockerExe = "$env:ProgramFiles\Docker\Docker\Docker Desktop.exe"
+        if (Test-Path $dockerExe) {
+            Start-Process $dockerExe -ErrorAction SilentlyContinue
+        } else {
+            Start-Process "shell:AppsFolder\Docker.DockerDesktop" -ErrorAction SilentlyContinue
+        }
 
-    if ($timeout -le 0) {
-        Write-Fail "Kubernetes context not available after 180 seconds"
-    }
-}
-Write-Ok "Kubernetes context available"
+        Write-Host "   Waiting for Docker to restart" -NoNewline
+        $timeout = 120
+        while ($timeout -gt 0) {
+            Start-Sleep -Seconds 2
+            Write-Host "." -NoNewline
+            $timeout -= 2
+            try {
+                $null = docker info 2>&1
+                if ($LASTEXITCODE -eq 0) { break }
+            } catch {}
+        }
+        Write-Host ""
 
-# Switch context
-kubectl config use-context docker-desktop 2>$null | Out-Null
-
-# Wait for nodes to be ready
-$nodesReady = kubectl wait --for=condition=Ready nodes --all --timeout=5s 2>$null
-if (-not $nodesReady) {
-    Write-Host "   Waiting for nodes" -NoNewline
-    $timeout = 180
-    while ($timeout -gt 0) {
-        Start-Sleep -Seconds 5
-        Write-Host "." -NoNewline
-        $timeout -= 5
-        $nodesReady = kubectl wait --for=condition=Ready nodes --all --timeout=10s 2>$null
-        if ($nodesReady) { break }
+        if ($timeout -le 0) {
+            Write-Fail "Docker failed to restart within 120 seconds"
+        }
+        Write-Ok "Docker Desktop restarted with Kubernetes enabled"
     }
-    Write-Host ""
 
-    if ($timeout -le 0) {
-        Write-Fail "Kubernetes nodes not ready after 180 seconds"
+    #------------------------------------------------------------------------------
+    # 5. Wait for Kubernetes to be ready (only if we needed to enable it)
+    #------------------------------------------------------------------------------
+    # Wait for docker-desktop context
+    $contextExists = kubectl config get-contexts docker-desktop 2>$null
+    if (-not $contextExists) {
+        Write-Host "   Waiting for Kubernetes to initialize" -NoNewline
+        $timeout = 180
+        while ($timeout -gt 0) {
+            Start-Sleep -Seconds 3
+            Write-Host "." -NoNewline
+            $timeout -= 3
+            $contextExists = kubectl config get-contexts docker-desktop 2>$null
+            if ($contextExists) { break }
+        }
+        Write-Host ""
+
+        if ($timeout -le 0) {
+            Write-Fail "Kubernetes context not available after 180 seconds"
+        }
     }
-}
-Write-Ok "Kubernetes is ready"
+    Write-Ok "Kubernetes context available"
+
+    # Switch context
+    kubectl config use-context docker-desktop 2>$null | Out-Null
+
+    # Wait for nodes to be ready
+    $nodesReady = kubectl wait --for=condition=Ready nodes --all --timeout=5s 2>$null
+    if (-not $nodesReady) {
+        Write-Host "   Waiting for nodes" -NoNewline
+        $timeout = 180
+        while ($timeout -gt 0) {
+            Start-Sleep -Seconds 5
+            Write-Host "." -NoNewline
+            $timeout -= 5
+            $nodesReady = kubectl wait --for=condition=Ready nodes --all --timeout=10s 2>$null
+            if ($nodesReady) { break }
+        }
+        Write-Host ""
+
+        if ($timeout -le 0) {
+            Write-Fail "Kubernetes nodes not ready after 180 seconds"
+        }
+    }
+    Write-Ok "Kubernetes is ready"
+}  # End of: if (-not $k8sWorking)
 
 #------------------------------------------------------------------------------
 # 6. Pre-build Maven services
