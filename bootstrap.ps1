@@ -17,6 +17,13 @@ function Test-Command($cmd) {
     $null -ne (Get-Command $cmd -ErrorAction SilentlyContinue)
 }
 
+function Refresh-Path {
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+}
+
+# Refresh PATH immediately - picks up tools installed in previous sessions
+Refresh-Path
+
 #------------------------------------------------------------------------------
 # 1. Welcome and confirmation
 #------------------------------------------------------------------------------
@@ -38,7 +45,15 @@ Write-Host "  - Launch Tilt"
 Write-Host ""
 Write-Host "NOTE: Docker Desktop will ask for admin privileges on first run." -ForegroundColor Yellow
 Write-Host ""
-$null = Read-Host "Press Enter to continue (or Ctrl+C to cancel)"
+
+# Skip confirmation in non-interactive mode
+if ([Environment]::UserInteractive -and -not $env:CI) {
+    try {
+        $null = Read-Host "Press Enter to continue (or Ctrl+C to cancel)"
+    } catch {
+        # Ignore errors in non-interactive mode
+    }
+}
 
 #------------------------------------------------------------------------------
 # 2. Install prerequisites via winget
@@ -58,8 +73,7 @@ if (Test-Command "docker") {
 } else {
     Write-Info "Installing Docker Desktop..."
     winget install --id Docker.DockerDesktop --accept-source-agreements --accept-package-agreements
-    # Refresh PATH
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+    Refresh-Path
     Write-Ok "Docker Desktop installed"
 
     # Verify docker command is now available
@@ -76,8 +90,7 @@ if (Test-Command "kubectl") {
 } else {
     Write-Info "Installing kubectl..."
     winget install --id Kubernetes.kubectl --accept-source-agreements --accept-package-agreements
-    # Refresh PATH
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+    Refresh-Path
     Write-Ok "kubectl installed"
 }
 
@@ -87,15 +100,15 @@ if (Test-Command "tilt") {
 } else {
     Write-Info "Installing Tilt..."
     winget install --id Tilt.Tilt --accept-source-agreements --accept-package-agreements
-    # Refresh PATH
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+    Refresh-Path
     Write-Ok "Tilt installed"
 }
 
 # Java 21 - need version 21+, not just any Java
 function Test-JavaVersion {
     try {
-        $javaOutput = java -version 2>&1 | Select-Object -First 1
+        # java -version writes to stderr; use cmd to capture it without ErrorActionPreference issues
+        $javaOutput = cmd /c "java -version 2>&1" | Out-String
         if ($javaOutput -match 'version "(\d+)') {
             $version = [int]$Matches[1]
             return $version -ge 21
@@ -104,19 +117,51 @@ function Test-JavaVersion {
     return $false
 }
 
+function Find-JavaHome {
+    # Look for Microsoft OpenJDK 21 in standard locations
+    $basePaths = @(
+        "$env:ProgramFiles\Microsoft\jdk-*",
+        "$env:ProgramFiles\Eclipse Adoptium\jdk-21*",
+        "$env:ProgramFiles\Java\jdk-21*"
+    )
+    foreach ($pattern in $basePaths) {
+        $found = Get-ChildItem -Path $pattern -Directory -ErrorAction SilentlyContinue |
+                 Sort-Object Name -Descending |
+                 Select-Object -First 1
+        if ($found -and (Test-Path "$($found.FullName)\bin\java.exe")) {
+            return $found.FullName
+        }
+    }
+    return $null
+}
+
 if (Test-JavaVersion) {
     Write-Ok "Java 21+ already installed"
 } else {
     Write-Info "Installing OpenJDK 21..."
     winget install --id Microsoft.OpenJDK.21 --accept-source-agreements --accept-package-agreements
-    # Refresh PATH
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+    Refresh-Path
+
+    # If java still not in PATH, find and add it explicitly
+    if (-not (Test-JavaVersion)) {
+        $javaHome = Find-JavaHome
+        if ($javaHome) {
+            $env:JAVA_HOME = $javaHome
+            $env:Path = "$javaHome\bin;$env:Path"
+            Write-Info "Added JAVA_HOME=$javaHome"
+        }
+    }
     Write-Ok "OpenJDK 21 installed"
 }
 
 # Verify Java 21+ works after install
 if (-not (Test-JavaVersion)) {
-    Write-Fail "Java 21+ not working after install. Please restart your terminal."
+    $javaHome = Find-JavaHome
+    if ($javaHome) {
+        Write-Warn "Found Java at $javaHome but it's not in PATH"
+        Write-Warn "Add '$javaHome\bin' to your PATH and restart terminal"
+    }
+    Write-Fail "Java 21+ not working. Please restart your terminal."
 }
 
 #------------------------------------------------------------------------------
