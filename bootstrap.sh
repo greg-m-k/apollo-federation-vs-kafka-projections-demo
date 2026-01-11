@@ -294,9 +294,19 @@ else
     DOCKER_SETTINGS="$HOME/.docker/desktop/settings.json"
 
     if [[ -f "$DOCKER_SETTINGS" ]]; then
-        # Docker Desktop on Linux
-        if grep -q '"kubernetes"[[:space:]]*:[[:space:]]*{[^}]*"enabled"[[:space:]]*:[[:space:]]*true' "$DOCKER_SETTINGS" 2>/dev/null || \
-           grep -q '"kubernetesEnabled"[[:space:]]*:[[:space:]]*true' "$DOCKER_SETTINGS" 2>/dev/null; then
+        # Docker Desktop on Linux - check if K8s enabled via python (handles multi-line JSON)
+        k8s_enabled=$(python3 -c "
+import json, sys
+try:
+    with open('$DOCKER_SETTINGS') as f:
+        s = json.load(f)
+    # Check both possible locations for the setting
+    if s.get('kubernetesEnabled') or s.get('kubernetes', {}).get('enabled'):
+        print('yes')
+except:
+    pass
+" 2>/dev/null)
+        if [[ "$k8s_enabled" == "yes" ]]; then
             ok "Kubernetes enabled in Docker Desktop"
         else
             warn "Kubernetes not enabled in Docker Desktop"
