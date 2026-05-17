@@ -156,29 +156,54 @@ if [[ "$OS" == "Darwin" ]]; then
     fi
 
     # Enable Kubernetes in Docker Desktop
-    DOCKER_SETTINGS="$HOME/Library/Group Containers/group.com.docker/settings.json"
+    K8S_CONTEXT="docker-desktop"
+    K8S_WORKING=false
 
-    if [[ ! -f "$DOCKER_SETTINGS" ]]; then
-        info "Waiting for Docker Desktop to initialize settings..."
-        wait_count=0
-        while [[ ! -f "$DOCKER_SETTINGS" ]] && [[ $wait_count -lt 60 ]]; do
-            sleep 2
-            wait_count=$((wait_count + 2))
-        done
-        if [[ ! -f "$DOCKER_SETTINGS" ]]; then
-            fail "Docker Desktop settings not found after 60 seconds."
+    # First check if Kubernetes is already working — skip settings dance entirely
+    if kubectl config get-contexts "$K8S_CONTEXT" &>/dev/null; then
+        kubectl config use-context "$K8S_CONTEXT" &>/dev/null || true
+        if kubectl cluster-info --context "$K8S_CONTEXT" &>/dev/null; then
+            K8S_WORKING=true
+            ok "Kubernetes already enabled and working"
         fi
     fi
 
-    if grep -q '"kubernetesEnabled"[[:space:]]*:[[:space:]]*true' "$DOCKER_SETTINGS"; then
-        ok "Kubernetes already enabled in Docker Desktop"
-    else
-        info "Enabling Kubernetes in Docker Desktop..."
-        info "Stopping Docker Desktop to modify settings..."
-        osascript -e 'quit app "Docker"' 2>/dev/null || true
-        sleep 3
+    if [[ "$K8S_WORKING" != "true" ]]; then
+        # Newer Docker Desktop writes settings-store.json; older versions use settings.json
+        DOCKER_SETTINGS_DIR="$HOME/Library/Group Containers/group.com.docker"
+        DOCKER_SETTINGS=""
 
-        python3 -c "
+        find_settings_file() {
+            if [[ -f "$DOCKER_SETTINGS_DIR/settings-store.json" ]]; then
+                echo "$DOCKER_SETTINGS_DIR/settings-store.json"
+            elif [[ -f "$DOCKER_SETTINGS_DIR/settings.json" ]]; then
+                echo "$DOCKER_SETTINGS_DIR/settings.json"
+            fi
+        }
+
+        DOCKER_SETTINGS=$(find_settings_file)
+        if [[ -z "$DOCKER_SETTINGS" ]]; then
+            info "Waiting for Docker Desktop to initialize settings..."
+            wait_count=0
+            while [[ -z "$DOCKER_SETTINGS" ]] && [[ $wait_count -lt 60 ]]; do
+                sleep 2
+                wait_count=$((wait_count + 2))
+                DOCKER_SETTINGS=$(find_settings_file)
+            done
+            if [[ -z "$DOCKER_SETTINGS" ]]; then
+                fail "Docker Desktop settings not found after 60 seconds (checked settings-store.json and settings.json)."
+            fi
+        fi
+
+        if grep -q '"kubernetesEnabled"[[:space:]]*:[[:space:]]*true' "$DOCKER_SETTINGS"; then
+            ok "Kubernetes already enabled in Docker Desktop"
+        else
+            info "Enabling Kubernetes in Docker Desktop..."
+            info "Stopping Docker Desktop to modify settings..."
+            osascript -e 'quit app "Docker"' 2>/dev/null || true
+            sleep 3
+
+            python3 -c "
 import json
 with open('$DOCKER_SETTINGS', 'r') as f:
     settings = json.load(f)
@@ -186,25 +211,24 @@ settings['kubernetesEnabled'] = True
 with open('$DOCKER_SETTINGS', 'w') as f:
     json.dump(settings, f, indent=2)
 "
-        info "Starting Docker Desktop with Kubernetes enabled..."
-        open -a Docker
+            info "Starting Docker Desktop with Kubernetes enabled..."
+            open -a Docker
 
-        echo -n "   Waiting for Docker to restart"
-        timeout=120
-        while ! docker info &>/dev/null; do
-            echo -n "."
-            sleep 2
-            timeout=$((timeout - 2))
-            if [[ $timeout -le 0 ]]; then
-                echo ""
-                fail "Docker failed to restart within 120 seconds"
-            fi
-        done
-        echo ""
-        ok "Docker Desktop restarted with Kubernetes enabled"
+            echo -n "   Waiting for Docker to restart"
+            timeout=120
+            while ! docker info &>/dev/null; do
+                echo -n "."
+                sleep 2
+                timeout=$((timeout - 2))
+                if [[ $timeout -le 0 ]]; then
+                    echo ""
+                    fail "Docker failed to restart within 120 seconds"
+                fi
+            done
+            echo ""
+            ok "Docker Desktop restarted with Kubernetes enabled"
+        fi
     fi
-
-    K8S_CONTEXT="docker-desktop"
 
 else
     #==========================================================================
@@ -290,12 +314,30 @@ else
     echo ""
     read -p "Press Enter to continue (or Ctrl+C to cancel)... "
 
-    # Check for Kubernetes - Docker Desktop or other
-    DOCKER_SETTINGS="$HOME/.docker/desktop/settings.json"
+    # Check for Kubernetes - first try kubectl directly (handles all cases cleanly)
+    K8S_WORKING=false
+    if kubectl config get-contexts docker-desktop &>/dev/null; then
+        kubectl config use-context docker-desktop &>/dev/null || true
+        if kubectl cluster-info --context docker-desktop &>/dev/null; then
+            K8S_WORKING=true
+            K8S_CONTEXT="docker-desktop"
+            ok "Kubernetes already enabled and working (docker-desktop)"
+        fi
+    fi
 
-    if [[ -f "$DOCKER_SETTINGS" ]]; then
-        # Docker Desktop on Linux - check if K8s enabled via python (handles multi-line JSON)
-        k8s_enabled=$(python3 -c "
+    if [[ "$K8S_WORKING" != "true" ]]; then
+        # Docker Desktop on Linux - check settings file. Newer versions use settings-store.json.
+        DOCKER_SETTINGS_DIR="$HOME/.docker/desktop"
+        DOCKER_SETTINGS=""
+        if [[ -f "$DOCKER_SETTINGS_DIR/settings-store.json" ]]; then
+            DOCKER_SETTINGS="$DOCKER_SETTINGS_DIR/settings-store.json"
+        elif [[ -f "$DOCKER_SETTINGS_DIR/settings.json" ]]; then
+            DOCKER_SETTINGS="$DOCKER_SETTINGS_DIR/settings.json"
+        fi
+
+        if [[ -n "$DOCKER_SETTINGS" ]]; then
+            # Docker Desktop on Linux - check if K8s enabled via python (handles multi-line JSON)
+            k8s_enabled=$(python3 -c "
 import json, sys
 try:
     with open('$DOCKER_SETTINGS') as f:
@@ -306,69 +348,72 @@ try:
 except:
     pass
 " 2>/dev/null)
-        if [[ "$k8s_enabled" == "yes" ]]; then
-            ok "Kubernetes enabled in Docker Desktop"
+            if [[ "$k8s_enabled" == "yes" ]]; then
+                ok "Kubernetes enabled in Docker Desktop"
+            else
+                warn "Kubernetes not enabled in Docker Desktop"
+                echo "   Enable it: Docker Desktop > Settings > Kubernetes > Enable"
+                echo "   Then run this script again."
+                exit 1
+            fi
+            K8S_CONTEXT="docker-desktop"
         else
-            warn "Kubernetes not enabled in Docker Desktop"
-            echo "   Enable it: Docker Desktop > Settings > Kubernetes > Enable"
-            echo "   Then run this script again."
-            exit 1
-        fi
-        K8S_CONTEXT="docker-desktop"
-    else
-        # Check for any available K8s context
-        if kubectl config current-context &>/dev/null; then
-            K8S_CONTEXT=$(kubectl config current-context)
-            ok "Using Kubernetes context: $K8S_CONTEXT"
-        else
-            warn "No Kubernetes context found"
-            echo ""
-            echo "Options:"
-            echo "  1. Install Docker Desktop and enable Kubernetes"
-            echo "  2. Install minikube: https://minikube.sigs.k8s.io/docs/start/"
-            echo "  3. Install kind: https://kind.sigs.k8s.io/docs/user/quick-start/"
-            echo ""
-            exit 1
+            # Check for any available K8s context
+            if kubectl config current-context &>/dev/null; then
+                K8S_CONTEXT=$(kubectl config current-context)
+                ok "Using Kubernetes context: $K8S_CONTEXT"
+            else
+                warn "No Kubernetes context found"
+                echo ""
+                echo "Options:"
+                echo "  1. Install Docker Desktop and enable Kubernetes"
+                echo "  2. Install minikube: https://minikube.sigs.k8s.io/docs/start/"
+                echo "  3. Install kind: https://kind.sigs.k8s.io/docs/user/quick-start/"
+                echo ""
+                exit 1
+            fi
         fi
     fi
 fi
 
 #------------------------------------------------------------------------------
-# 4. Verify Kubernetes is ready (common for both platforms)
+# 4. Verify Kubernetes is ready (common for both platforms; skip if already verified)
 #------------------------------------------------------------------------------
-if ! kubectl config get-contexts "$K8S_CONTEXT" &>/dev/null 2>&1; then
-    echo -n "   Waiting for Kubernetes context"
-    timeout=180
-    while ! kubectl config get-contexts "$K8S_CONTEXT" &>/dev/null 2>&1; do
-        echo -n "."
-        sleep 3
-        timeout=$((timeout - 3))
-        if [[ $timeout -le 0 ]]; then
-            echo ""
-            fail "Kubernetes context '$K8S_CONTEXT' not available after 180 seconds"
-        fi
-    done
-    echo ""
-fi
-ok "Kubernetes context available"
+if [[ "${K8S_WORKING:-false}" != "true" ]]; then
+    if ! kubectl config get-contexts "$K8S_CONTEXT" &>/dev/null 2>&1; then
+        echo -n "   Waiting for Kubernetes context"
+        timeout=180
+        while ! kubectl config get-contexts "$K8S_CONTEXT" &>/dev/null 2>&1; do
+            echo -n "."
+            sleep 3
+            timeout=$((timeout - 3))
+            if [[ $timeout -le 0 ]]; then
+                echo ""
+                fail "Kubernetes context '$K8S_CONTEXT' not available after 180 seconds"
+            fi
+        done
+        echo ""
+    fi
+    ok "Kubernetes context available"
 
-kubectl config use-context "$K8S_CONTEXT" &>/dev/null
+    kubectl config use-context "$K8S_CONTEXT" &>/dev/null
 
-if ! kubectl wait --for=condition=Ready nodes --all --timeout=5s &>/dev/null; then
-    echo -n "   Waiting for nodes"
-    timeout=180
-    while ! kubectl wait --for=condition=Ready nodes --all --timeout=10s &>/dev/null; do
-        echo -n "."
-        sleep 5
-        timeout=$((timeout - 5))
-        if [[ $timeout -le 0 ]]; then
-            echo ""
-            fail "Kubernetes nodes not ready after 180 seconds"
-        fi
-    done
-    echo ""
+    if ! kubectl wait --for=condition=Ready nodes --all --timeout=5s &>/dev/null; then
+        echo -n "   Waiting for nodes"
+        timeout=180
+        while ! kubectl wait --for=condition=Ready nodes --all --timeout=10s &>/dev/null; do
+            echo -n "."
+            sleep 5
+            timeout=$((timeout - 5))
+            if [[ $timeout -le 0 ]]; then
+                echo ""
+                fail "Kubernetes nodes not ready after 180 seconds"
+            fi
+        done
+        echo ""
+    fi
+    ok "Kubernetes is ready"
 fi
-ok "Kubernetes is ready"
 
 #------------------------------------------------------------------------------
 # 5. Pre-build Maven services (parallel)
