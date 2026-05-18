@@ -162,7 +162,7 @@ if [[ "$OS" == "Darwin" ]]; then
     # First check if Kubernetes is already working — skip settings dance entirely
     if kubectl config get-contexts "$K8S_CONTEXT" &>/dev/null; then
         kubectl config use-context "$K8S_CONTEXT" &>/dev/null || true
-        if kubectl cluster-info --context "$K8S_CONTEXT" &>/dev/null; then
+        if kubectl cluster-info --context "$K8S_CONTEXT" --request-timeout=5s &>/dev/null; then
             K8S_WORKING=true
             ok "Kubernetes already enabled and working"
         fi
@@ -195,7 +195,19 @@ if [[ "$OS" == "Darwin" ]]; then
             fi
         fi
 
-        if grep -q '"kubernetesEnabled"[[:space:]]*:[[:space:]]*true' "$DOCKER_SETTINGS"; then
+        # Docker Desktop has used both 'KubernetesEnabled' (current) and 'kubernetesEnabled' (legacy);
+        # also handle the nested 'kubernetes.enabled' shape some versions write.
+        k8s_already_enabled=$(python3 -c "
+import json
+try:
+    with open('$DOCKER_SETTINGS') as f:
+        s = json.load(f)
+    if s.get('KubernetesEnabled') or s.get('kubernetesEnabled') or s.get('kubernetes', {}).get('enabled'):
+        print('yes')
+except Exception:
+    pass
+" 2>/dev/null)
+        if [[ "$k8s_already_enabled" == "yes" ]]; then
             ok "Kubernetes already enabled in Docker Desktop"
         else
             info "Enabling Kubernetes in Docker Desktop..."
@@ -207,7 +219,7 @@ if [[ "$OS" == "Darwin" ]]; then
 import json
 with open('$DOCKER_SETTINGS', 'r') as f:
     settings = json.load(f)
-settings['kubernetesEnabled'] = True
+settings['KubernetesEnabled'] = True
 with open('$DOCKER_SETTINGS', 'w') as f:
     json.dump(settings, f, indent=2)
 "
@@ -318,7 +330,7 @@ else
     K8S_WORKING=false
     if kubectl config get-contexts docker-desktop &>/dev/null; then
         kubectl config use-context docker-desktop &>/dev/null || true
-        if kubectl cluster-info --context docker-desktop &>/dev/null; then
+        if kubectl cluster-info --context docker-desktop --request-timeout=5s &>/dev/null; then
             K8S_WORKING=true
             K8S_CONTEXT="docker-desktop"
             ok "Kubernetes already enabled and working (docker-desktop)"
@@ -342,8 +354,7 @@ import json, sys
 try:
     with open('$DOCKER_SETTINGS') as f:
         s = json.load(f)
-    # Check both possible locations for the setting
-    if s.get('kubernetesEnabled') or s.get('kubernetes', {}).get('enabled'):
+    if s.get('KubernetesEnabled') or s.get('kubernetesEnabled') or s.get('kubernetes', {}).get('enabled'):
         print('yes')
 except:
     pass
