@@ -94,7 +94,7 @@ services:
   hr-subgraph:
     build:
       context: ./services/federation/hr-subgraph
-      dockerfile: ../../../infra/docker/Dockerfile.quarkus-jvm
+      dockerfile: ../../../infra/docker/Dockerfile.quarkus-compose
     environment:
       DB_HOST: postgres-federation
       DB_PORT: 5432
@@ -110,7 +110,7 @@ services:
   employment-subgraph:
     build:
       context: ./services/federation/employment-subgraph
-      dockerfile: ../../../infra/docker/Dockerfile.quarkus-jvm
+      dockerfile: ../../../infra/docker/Dockerfile.quarkus-compose
     environment:
       DB_HOST: postgres-federation
       DB_PORT: 5432
@@ -126,7 +126,7 @@ services:
   security-subgraph:
     build:
       context: ./services/federation/security-subgraph
-      dockerfile: ../../../infra/docker/Dockerfile.quarkus-jvm
+      dockerfile: ../../../infra/docker/Dockerfile.quarkus-compose
     environment:
       DB_HOST: postgres-federation
       DB_PORT: 5432
@@ -142,12 +142,14 @@ services:
   router:
     image: ghcr.io/apollographql/router:v2.0.0
     volumes:
-      - ./infra/router/federation/router.yaml:/dist/config/router.yaml
-      - ./infra/router/federation/supergraph.graphql:/dist/config/supergraph.graphql
+      # Same layout as Kubernetes: router.yaml loads its Rhai script from /config.
+      - ./infra/router/federation/router.yaml:/config/router.yaml:ro
+      - ./infra/router/federation/supergraph.graphql:/config/supergraph.graphql:ro
+      - ./infra/router/federation/timing.rhai:/config/timing.rhai:ro
     ports:
       - "4000:4000"
       - "8088:8088"
-    command: ["--config", "/dist/config/router.yaml", "--supergraph", "/dist/config/supergraph.graphql"]
+    command: ["--config", "/config/router.yaml", "--supergraph", "/config/supergraph.graphql"]
     depends_on:
       - hr-subgraph
       - employment-subgraph
@@ -160,7 +162,7 @@ services:
   hr-events-service:
     build:
       context: ./services/event/hr-events-service
-      dockerfile: ../../../infra/docker/Dockerfile.quarkus-jvm
+      dockerfile: ../../../infra/docker/Dockerfile.quarkus-compose
     environment:
       DB_HOST: postgres-kafka
       DB_PORT: 5432
@@ -179,7 +181,7 @@ services:
   employment-events-service:
     build:
       context: ./services/event/employment-events-service
-      dockerfile: ../../../infra/docker/Dockerfile.quarkus-jvm
+      dockerfile: ../../../infra/docker/Dockerfile.quarkus-compose
     environment:
       DB_HOST: postgres-kafka
       DB_PORT: 5432
@@ -198,7 +200,7 @@ services:
   security-events-service:
     build:
       context: ./services/event/security-events-service
-      dockerfile: ../../../infra/docker/Dockerfile.quarkus-jvm
+      dockerfile: ../../../infra/docker/Dockerfile.quarkus-compose
     environment:
       DB_HOST: postgres-kafka
       DB_PORT: 5432
@@ -217,7 +219,7 @@ services:
   projection-consumer:
     build:
       context: ./services/event/projection-consumer
-      dockerfile: ../../../infra/docker/Dockerfile.quarkus-jvm
+      dockerfile: ../../../infra/docker/Dockerfile.quarkus-compose
     environment:
       DB_HOST: postgres-kafka
       DB_PORT: 5432
@@ -238,7 +240,7 @@ services:
   query-service:
     build:
       context: ./services/event/query-service
-      dockerfile: ../../../infra/docker/Dockerfile.quarkus-jvm
+      dockerfile: ../../../infra/docker/Dockerfile.quarkus-compose
     environment:
       DB_HOST: postgres-kafka
       DB_PORT: 5432
