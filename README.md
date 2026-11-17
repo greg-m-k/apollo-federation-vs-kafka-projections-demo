@@ -104,7 +104,8 @@ kubectl delete namespace federation kafka  # Full cleanup
 
 ## Alternative: Docker Compose (No Kubernetes)
 
-If you don't want to use Tilt/Kubernetes:
+If you don't want to use Tilt/Kubernetes. This needs only Docker Desktop, on Windows or macOS: the services are
+compiled inside Docker, so Java and Maven are not needed on your machine. The first build takes a few minutes.
 
 ```bash
 docker compose up --build      # Build and start
